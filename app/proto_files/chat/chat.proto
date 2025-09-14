@@ -1,0 +1,25 @@
+syntax = "proto3";
+package chat.v1;
+
+message ClientMessage {
+  string room_id = 1;
+  string user_id = 2;
+  string message_id = 3;
+  string text = 4;
+  int64 sent_at_unix_ms = 5;
+}
+
+message ServerMessage {
+  string room_id = 1;
+  string user_id = 2;
+  string message_id = 3;
+  string text = 4;
+  int64 sent_at_unix_ms = 5;
+  int64 delivered_at_unix_ms = 6;
+}
+
+service ChatService {
+  rpc Chat(stream ClientMessage) returns (stream ServerMessage);
+}
+
+

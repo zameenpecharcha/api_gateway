@@ -1,0 +1,157 @@
+syntax = "proto3";
+
+package notification;
+
+service NotificationService {
+  // Get user notifications
+  rpc GetUserNotifications(GetUserNotificationsRequest) returns (NotificationsResponse) {}
+  
+  // Mark notification as read
+  rpc MarkNotificationAsRead(MarkNotificationAsReadRequest) returns (MarkNotificationAsReadResponse) {}
+  
+  // Subscribe to location updates
+  rpc SubscribeToLocation(SubscribeToLocationRequest) returns (SubscribeToLocationResponse) {}
+  
+  // Unsubscribe from location
+  rpc UnsubscribeFromLocation(UnsubscribeFromLocationRequest) returns (UnsubscribeFromLocationResponse) {}
+  
+  // Get user's location subscriptions
+  rpc GetUserSubscriptions(GetUserSubscriptionsRequest) returns (UserSubscriptionsResponse) {}
+  
+  // Create post like notification
+  rpc CreatePostLikeNotification(CreatePostLikeNotificationRequest) returns (Notification) {}
+  
+  // Create post comment notification
+  rpc CreatePostCommentNotification(CreatePostCommentNotificationRequest) returns (Notification) {}
+  
+  // Create comment like notification
+  rpc CreateCommentLikeNotification(CreateCommentLikeNotificationRequest) returns (Notification) {}
+  
+  // Create comment reply notification
+  rpc CreateCommentReplyNotification(CreateCommentReplyNotificationRequest) returns (Notification) {}
+  
+  // Create trending post notification
+  rpc CreateTrendingPostNotification(CreateTrendingPostNotificationRequest) returns (Notification) {}
+  
+  // Notify trending posts to subscribers
+  rpc NotifyTrendingPosts(NotifyTrendingPostsRequest) returns (NotifyTrendingPostsResponse) {}
+}
+
+// Request messages
+message GetUserNotificationsRequest {
+  int32 user_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  bool unread_only = 4;
+}
+
+message MarkNotificationAsReadRequest {
+  int32 notification_id = 1;
+  int32 user_id = 2;
+}
+
+message SubscribeToLocationRequest {
+  int32 user_id = 1;
+  double latitude = 2;
+  double longitude = 3;
+  double radius_km = 4;
+}
+
+message UnsubscribeFromLocationRequest {
+  int32 subscription_id = 1;
+  int32 user_id = 2;
+}
+
+message GetUserSubscriptionsRequest {
+  int32 user_id = 1;
+}
+
+message CreatePostLikeNotificationRequest {
+  int32 post_id = 1;
+  int32 post_owner_id = 2;
+  int32 liker_id = 3;
+}
+
+message CreatePostCommentNotificationRequest {
+  int32 post_id = 1;
+  int32 post_owner_id = 2;
+  int32 commenter_id = 3;
+  string comment_text = 4;
+}
+
+message CreateCommentLikeNotificationRequest {
+  int32 comment_id = 1;
+  int32 comment_owner_id = 2;
+  int32 liker_id = 3;
+}
+
+message CreateCommentReplyNotificationRequest {
+  int32 comment_id = 1;
+  int32 comment_owner_id = 2;
+  int32 replier_id = 3;
+  string reply_text = 4;
+}
+
+message CreateTrendingPostNotificationRequest {
+  int32 post_id = 1;
+  int32 user_id = 2;
+  string location_name = 3;
+}
+
+message NotifyTrendingPostsRequest {
+  int32 post_id = 1;
+  double latitude = 2;
+  double longitude = 3;
+  double radius_km = 4;
+  string location_name = 5;
+}
+
+// Response messages
+message Notification {
+  int32 id = 1;
+  int32 user_id = 2;
+  string type = 3;
+  string message = 4;
+  int32 entity_id = 5;
+  string entity_type = 6;
+  bool is_read = 7;
+  string created_at = 8;
+  string context = 9;
+}
+
+message NotificationsResponse {
+  repeated Notification notifications = 1;
+  int32 total_count = 2;
+  int32 unread_count = 3;
+}
+
+message MarkNotificationAsReadResponse {
+  bool success = 1;
+}
+
+message LocationSubscription {
+  int32 id = 1;
+  int32 user_id = 2;
+  double latitude = 3;
+  double longitude = 4;
+  double radius_km = 5;
+  string created_at = 6;
+  bool is_active = 7;
+}
+
+message SubscribeToLocationResponse {
+  LocationSubscription subscription = 1;
+}
+
+message UnsubscribeFromLocationResponse {
+  bool success = 1;
+}
+
+message UserSubscriptionsResponse {
+  repeated LocationSubscription subscriptions = 1;
+}
+
+message NotifyTrendingPostsResponse {
+  repeated Notification notifications = 1;
+  int32 total_notified = 2;
+} 
