@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package search;
+
+service SearchService {
+  rpc SearchPosts(SearchPostsRequest) returns (SearchPostsResponse);
+  rpc SearchUsers(SearchUsersRequest) returns (SearchUsersResponse);
+  rpc SearchProperties(SearchPropertiesRequest) returns (SearchPropertiesResponse);
+}
+
+message SearchPostsRequest {
+  string query = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  optional double latitude = 4;
+  optional double longitude = 5;
+  optional double radius_km = 6;
+}
+
+message SearchUsersRequest {
+  string query = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message SearchPropertiesRequest {
+  string query = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  optional double min_price = 4;
+  optional double max_price = 5;
+  optional string property_type = 6;
+  optional double latitude = 7;
+  optional double longitude = 8;
+  optional double radius_km = 9;
+}
+
+message SearchPostsResponse {
+  repeated PostResult posts = 1;
+  int32 total_count = 2;
+}
+
+message SearchUsersResponse {
+  repeated UserResult users = 1;
+  int32 total_count = 2;
+}
+
+message SearchPropertiesResponse {
+  repeated PropertyResult properties = 1;
+  int32 total_count = 2;
+}
+
+message PostResult {
+  int32 id = 1;
+  string content = 2;
+  int32 user_id = 3;
+  string user_name = 4;
+  double latitude = 5;
+  double longitude = 6;
+  string location_name = 7;
+  int32 likes_count = 8;
+  int32 comments_count = 9;
+  string created_at = 10;
+}
+
+message UserResult {
+  int32 id = 1;
+  string name = 2;
+  string email = 3;
+  string profile_photo = 4;
+  string location = 5;
+}
+
+message PropertyResult {
+  int32 id = 1;
+  string title = 2;
+  string description = 3;
+  double price = 4;
+  string property_type = 5;
+  double latitude = 6;
+  double longitude = 7;
+  string location_name = 8;
+  int32 user_id = 9;
+  string user_name = 10;
+} 

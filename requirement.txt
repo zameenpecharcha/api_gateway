@@ -1,0 +1,8 @@
+fastapi
+strawberry-graphql
+uvicorn
+python-dotenv
+grpcio
+protobuf
+grpcio-tools
+jwt
