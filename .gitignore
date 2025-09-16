@@ -1,3 +1,11 @@
+# Ignore all Terraform files except .tf
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/*.backup
+terraform/crash.log
+!terraform/*.tf
 # Python cache
 __pycache__/
 *.py[cod]
