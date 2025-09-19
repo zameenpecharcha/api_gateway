@@ -12,9 +12,11 @@ spec:
       labels:
         app: api-gateway
     spec:
+      imagePullSecrets:
+      - name: regcred
       containers:
       - name: api-gateway
-        image: DOCKERHUB_USERNAME/zpc:dev
+        image: atcs1234/zpc:dev
         ports:
         - containerPort: 8000
         env:
