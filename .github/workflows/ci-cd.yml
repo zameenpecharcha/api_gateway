@@ -49,17 +49,6 @@ jobs:
         with:
           version: 'latest'
 
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.8.2
-
-      - name: Terraform Init & Apply
-        working-directory: ./terraform
-        run: |
-          terraform init
-          terraform apply -auto-approve
-
       - name: Update kubeconfig
         run: |
           aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER_NAME
