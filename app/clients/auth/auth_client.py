@@ -16,18 +16,18 @@ class AuthServiceClient(GRPCBaseClient):
             email=email,
             password=password
         )
-        return self._call(self.stub.Login, request, require_token=False)
+        return self._call("Login", request, require_token=False)
 
     def logout(self, token: str, refresh_token: str = None):
         request = auth_pb2.LogoutRequest(
             token=token,
             refresh_token=refresh_token or ""
         )
-        return self._call(self.stub.Logout, request, require_token=False)
+        return self._call("Logout", request, require_token=False)
 
     def validate_token(self, token: str):
         request = auth_pb2.ValidateTokenRequest(token=token)
-        return self._call(self.stub.ValidateToken, request,require_token=False)
+        return self._call("ValidateToken", request,require_token=False)
 
     def send_otp(self, email: str, phone: str = None, otp_type: int = 0):
         request = auth_pb2.OTPRequest(
@@ -35,7 +35,7 @@ class AuthServiceClient(GRPCBaseClient):
             phone=phone,
             type=otp_type.value if hasattr(otp_type, 'value') else otp_type
         )
-        return self._call(self.stub.SendOTP, request, require_token=False)
+        return self._call("SendOTP", request, require_token=False)
 
     def verify_otp(self, email: str, otp_code: str, otp_type: int = 0):
         request = auth_pb2.VerifyOTPRequest(
@@ -43,14 +43,14 @@ class AuthServiceClient(GRPCBaseClient):
             otp_code=otp_code,
             type=otp_type.value if hasattr(otp_type, 'value') else otp_type
         )
-        return self._call(self.stub.VerifyOTP, request,require_token=False)
+        return self._call("VerifyOTP", request,require_token=False)
 
     def forgot_password(self, email: str, phone: str = None):
         request = auth_pb2.ForgotPasswordRequest(
             email=email,
             phone=phone
         )
-        return self._call(self.stub.ForgotPassword, request,require_token=False)
+        return self._call("ForgotPassword", request,require_token=False)
 
     def reset_password(self, email: str, otp_code: str, new_password: str, confirm_password: str):
         request = auth_pb2.ResetPasswordRequest(
@@ -59,6 +59,6 @@ class AuthServiceClient(GRPCBaseClient):
             new_password=new_password,
             confirm_password=confirm_password
         )
-        return self._call(self.stub.ResetPassword, request,require_token=False)
+        return self._call("ResetPassword", request,require_token=False)
 
 auth_service_client=AuthServiceClient()

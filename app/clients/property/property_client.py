@@ -13,3 +13,4 @@ class PropertyServiceClient(GRPCBaseClient):
 
 
 property_service_client = PropertyServiceClient()
+

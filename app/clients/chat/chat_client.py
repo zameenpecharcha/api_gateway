@@ -30,7 +30,7 @@ class ChatServiceClient(GRPCBaseClient):
             type=chat_pb2.ROOM_TYPE_DM,
             member_ids=[user_a, user_b],
         )
-        return self._call(self.stub.CreateRoom, request, token=token, require_token=False)
+        return self._call("CreateRoom", request, token=token, require_token=False)
 
     def create_group_room(self, name: str, created_by: str, member_ids: list,
                           token: Optional[str] = None):
@@ -40,7 +40,7 @@ class ChatServiceClient(GRPCBaseClient):
             type=chat_pb2.ROOM_TYPE_GROUP,
             member_ids=member_ids,
         )
-        return self._call(self.stub.CreateRoom, request, token=token, require_token=False)
+        return self._call("CreateRoom", request, token=token, require_token=False)
 
     # ── Message history ───────────────────────────────────────────────────────
 
@@ -53,13 +53,13 @@ class ChatServiceClient(GRPCBaseClient):
             limit=limit,
             before_unix_ms=before_unix_ms,
         )
-        return self._call(self.stub.GetMessages, request, token=token, require_token=False)
+        return self._call("GetMessages", request, token=token, require_token=False)
 
     # ── Presence ──────────────────────────────────────────────────────────────
 
     def get_presence(self, user_ids: list, token: Optional[str] = None):
         request = chat_pb2.GetPresenceRequest(user_ids=user_ids)
-        return self._call(self.stub.GetPresence, request, token=token, require_token=False)
+        return self._call("GetPresence", request, token=token, require_token=False)
 
     # ── Media upload / download ───────────────────────────────────────────────
 
@@ -73,12 +73,12 @@ class ChatServiceClient(GRPCBaseClient):
             mime_type=mime_type,
             file_size_bytes=file_size_bytes,
         )
-        return self._call(self.stub.RequestUpload, request, token=token, require_token=False)
+        return self._call("RequestUpload", request, token=token, require_token=False)
 
     def get_download_url(self, user_id: str, media_key: str,
                          token: Optional[str] = None):
         request = chat_pb2.GetDownloadUrlRequest(user_id=user_id, media_key=media_key)
-        return self._call(self.stub.GetDownloadUrl, request, token=token, require_token=False)
+        return self._call("GetDownloadUrl", request, token=token, require_token=False)
 
     # ── Helper ────────────────────────────────────────────────────────────────
 
@@ -102,5 +102,6 @@ class ChatServiceClient(GRPCBaseClient):
 
 
 chat_service_client = ChatServiceClient()
+
 
 
