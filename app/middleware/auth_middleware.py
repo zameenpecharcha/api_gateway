@@ -11,6 +11,7 @@ from app.utils.log_utils import log_msg
 
 PUBLIC_GRAPHQL_OPS = {
     "login", "register", "sendotp", "verifyotp", "forgotpassword", "logout",
+    "createuser",
     # chat operations — authenticated via WebSocket session
     "createdmroom", "creategrouproom", "requestchatupload", "chatdownloadurl",
 }

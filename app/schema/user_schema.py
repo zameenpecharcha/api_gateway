@@ -276,8 +276,8 @@ class Mutation:
             else:
                 raise REException(
                     "USER_CREATION_FAILED",
-                    "Failed to create user",
-                    "Please try again later"
+                    f"Failed to create user - {error_message}",
+                    error_message
                 ).to_graphql_error()
 
     @strawberry.mutation
