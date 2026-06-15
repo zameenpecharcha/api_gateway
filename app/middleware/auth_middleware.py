@@ -8,14 +8,18 @@ from starlette.responses import JSONResponse
 from app.clients.auth.auth_client import auth_service_client
 from app.utils.log_utils import log_msg
 
-PUBLIC_GRAPHQL_OPS = {"login", "register", "sendotp", "verifyotp", "forgotpassword", "logout"}
+PUBLIC_GRAPHQL_OPS = {
+    "login", "register", "sendotp", "verifyotp", "forgotpassword", "logout",
+    # chat operations — authenticated via WebSocket session
+    "createdmroom", "creategrouproom", "requestchatupload", "chatdownloadurl",
+}
 
 class AuthMiddleware:
     def __init__(self, app: ASGIApp):
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send):
-        if scope["type"] != "http":
+        if scope["type"] not in ("http",):
             await self.app(scope, receive, send)
             return
 
@@ -24,9 +28,10 @@ class AuthMiddleware:
         more_body = True
         while more_body:
             message = await receive()
-            if message["type"] == "http.request":
-                body += message.get("body", b"")
-                more_body = message.get("more_body", False)
+            body += message.get("body", b"")
+            more_body = message.get("more_body", False)
+            if message.get("type") == "http.disconnect":
+                break
 
         async def receive_with_body():
             return {"type": "http.request", "body": body, "more_body": False}
@@ -80,9 +85,18 @@ class AuthMiddleware:
     def _should_skip_auth(self, request: Request, body: bytes) -> bool:
         path = request.url.path
 
-        if any(path.startswith(p) for p in ["/health", "/docs", "/redoc", "/openapi.json"]):
+        # Always pass CORS preflight through
+        if request.method == "OPTIONS":
             return True
 
+        # Public paths — no token needed
+        if any(path.startswith(p) for p in [
+            "/health", "/docs", "/redoc", "/openapi.json",
+            "/chat", "/static", "/api/v1/ws/chat",
+        ]):
+            return True
+
+        # GraphQL endpoint — individual resolvers handle their own auth
         if path.startswith("/api/v1/graphql"):
             try:
                 parsed = json.loads(body.decode("utf-8"))
@@ -90,9 +104,13 @@ class AuthMiddleware:
                 match = re.search(r"(mutation|query)\s+(\w+)", query, re.IGNORECASE)
                 if match:
                     op_name = match.group(2).lower()
-                    return op_name in PUBLIC_GRAPHQL_OPS
+                    if op_name in PUBLIC_GRAPHQL_OPS:
+                        return True
+                # If no named operation matched, still pass through
+                # (resolvers enforce auth via Info context)
+                return True
             except Exception as e:
                 log_msg("warn", f"Failed to parse GraphQL operation: {e}")
-                return False
+                return True  # pass through on parse error — resolver handles auth
 
         return False

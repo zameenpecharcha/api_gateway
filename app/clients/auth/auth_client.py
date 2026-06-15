@@ -1,10 +1,15 @@
+import os
+from dotenv import load_dotenv
 from app.clients.grpc_base_client import GRPCBaseClient
 from app.proto_files.auth import auth_pb2_grpc, auth_pb2
+
+load_dotenv()
 
 
 class AuthServiceClient(GRPCBaseClient):
     def __init__(self):
-        super().__init__(auth_pb2_grpc.AuthServiceStub, target='localhost:50052')
+        target = os.getenv("AUTH_SERVICE_URL", "localhost:50052")
+        super().__init__(auth_pb2_grpc.AuthServiceStub, target=target)
 
     def login(self, email: str, password: str):
         request = auth_pb2.LoginRequest(

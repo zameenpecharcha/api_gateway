@@ -1,10 +1,24 @@
 import grpc
+import os
+from dotenv import load_dotenv
 from app.utils.log_utils import log_msg
+
+load_dotenv()
+
+
+def _make_channel(target: str):
+    """Return a secure channel for *.onrender.com or :443 targets, insecure otherwise."""
+    if target.endswith(":443") or ".onrender.com" in target:
+        creds = grpc.ssl_channel_credentials()
+        # Render TLS — strip port if already present, enforce 443
+        host = target.split(":")[0]
+        return grpc.secure_channel(f"{host}:443", creds)
+    return grpc.insecure_channel(target)
 
 
 class GRPCBaseClient:
-    def __init__(self, stub_class, target='localhost:50051'):
-        self.channel = grpc.insecure_channel(target)
+    def __init__(self, stub_class, target: str = "localhost:50051"):
+        self.channel = _make_channel(target)
         self.stub = stub_class(self.channel)
 
     def _get_metadata(self, token=None, require_token=True):

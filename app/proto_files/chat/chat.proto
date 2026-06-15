@@ -1,25 +1,99 @@
 syntax = "proto3";
+
 package chat.v1;
 
+// ── Enums ─────────────────────────────────────────────────────────────────────
+
+enum MessageType {
+  MESSAGE_TYPE_TEXT  = 0;
+  MESSAGE_TYPE_IMAGE = 1;
+  MESSAGE_TYPE_VIDEO = 2;
+  MESSAGE_TYPE_AUDIO = 3;
+  MESSAGE_TYPE_FILE  = 4;
+}
+
+enum RoomType {
+  ROOM_TYPE_DM    = 0;
+  ROOM_TYPE_GROUP = 1;
+}
+
+// ── Chat stream ───────────────────────────────────────────────────────────────
+
 message ClientMessage {
-  string room_id = 1;
-  string user_id = 2;
-  string message_id = 3;
-  string text = 4;
-  int64 sent_at_unix_ms = 5;
+  string      room_id          = 1;
+  string      user_id          = 2;
+  string      message_id       = 3;
+  string      text             = 4;
+  int64       sent_at_unix_ms  = 5;
+  MessageType type             = 6;
+  string      media_key        = 7;
+  string      media_name       = 8;
+  int64       media_size_bytes = 9;
+  string      media_mime_type  = 10;
 }
 
 message ServerMessage {
-  string room_id = 1;
-  string user_id = 2;
-  string message_id = 3;
-  string text = 4;
-  int64 sent_at_unix_ms = 5;
-  int64 delivered_at_unix_ms = 6;
+  string      room_id              = 1;
+  string      user_id              = 2;
+  string      message_id           = 3;
+  string      text                 = 4;
+  int64       sent_at_unix_ms      = 5;
+  int64       delivered_at_unix_ms = 6;
+  MessageType type                 = 7;
+  string      media_key            = 8;
+  string      media_name           = 9;
+  int64       media_size_bytes     = 10;
+  string      media_mime_type      = 11;
+  string      media_url            = 12;
 }
+
+// ── Upload flow ───────────────────────────────────────────────────────────────
+
+message UploadRequest {
+  string user_id         = 1;
+  string room_id         = 2;
+  string file_name       = 3;
+  string mime_type       = 4;
+  int64  file_size_bytes = 5;
+}
+
+message UploadResponse {
+  string media_key          = 1;
+  string upload_url         = 2;
+  int64  expires_at_unix_ms = 3;
+}
+
+message GetDownloadUrlRequest {
+  string user_id   = 1;
+  string media_key = 2;
+}
+
+message GetDownloadUrlResponse {
+  string url                = 1;
+  int64  expires_at_unix_ms = 2;
+}
+
+// ── Room management ───────────────────────────────────────────────────────────
+
+message CreateRoomRequest {
+  string          created_by = 1;
+  string          name       = 2;
+  RoomType        type       = 3;
+  repeated string member_ids = 4;
+}
+
+message CreateRoomResponse {
+  string room_id = 1;
+  string name    = 2;
+}
+
+// ── Service ───────────────────────────────────────────────────────────────────
 
 service ChatService {
   rpc Chat(stream ClientMessage) returns (stream ServerMessage);
+  rpc CreateRoom(CreateRoomRequest) returns (CreateRoomResponse);
+  rpc RequestUpload(UploadRequest) returns (UploadResponse);
+  rpc GetDownloadUrl(GetDownloadUrlRequest) returns (GetDownloadUrlResponse);
 }
 
 

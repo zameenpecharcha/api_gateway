@@ -10,7 +10,7 @@ resource "aws_subnet" "eks" {
   count                   = 2
   vpc_id                  = aws_vpc.eks_vpc.id
   cidr_block              = cidrsubnet(aws_vpc.eks_vpc.cidr_block, 8, count.index)
-  availability_zone       = element(["us-east-1a", "us-east-1b"], count.index)
+  availability_zone       = ["us-east-1a", "us-east-1b"][count.index]
   map_public_ip_on_launch = true
 }
 

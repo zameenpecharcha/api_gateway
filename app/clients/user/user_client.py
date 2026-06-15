@@ -1,10 +1,15 @@
+import os
+from dotenv import load_dotenv
 from app.clients.grpc_base_client import GRPCBaseClient
 from app.proto_files.user import user_pb2, user_pb2_grpc
+
+load_dotenv()
 
 
 class UserServiceClient(GRPCBaseClient):
     def __init__(self):
-        super().__init__(user_pb2_grpc.UserServiceStub, target='localhost:50051')
+        target = os.getenv("USER_SERVICE_URL", "localhost:50053")
+        super().__init__(user_pb2_grpc.UserServiceStub, target=target)
 
     def get_user(self, user_id: str,token=None):
         request = user_pb2.UserRequest(id=user_id)

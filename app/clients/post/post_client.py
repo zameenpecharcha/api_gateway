@@ -1,15 +1,20 @@
+import os
 import grpc
 import base64
 from datetime import datetime
 from typing import Optional
+from dotenv import load_dotenv
 from app.proto_files.posts import post_pb2_grpc, post_pb2
 from app.utils.jwt_utils import get_token
 from app.clients.grpc_base_client import GRPCBaseClient
 
+load_dotenv()
+
 
 class PostsServiceClient(GRPCBaseClient):
     def __init__(self):
-        super().__init__(post_pb2_grpc.PostsServiceStub, target='localhost:50052')
+        target = os.getenv("POST_SERVICE_URL", "localhost:50055")
+        super().__init__(post_pb2_grpc.PostsServiceStub, target=target)
 
     def get_comments(self, post_id: int, page: int = 1, limit: int = 10,token=None):
         try:

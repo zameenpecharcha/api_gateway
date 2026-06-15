@@ -3,9 +3,9 @@
 import grpc
 import warnings
 
-from . import chat_pb2 as chat__pb2
+import chat_pb2 as chat__pb2
 
-GRPC_GENERATED_VERSION = '1.74.0'
+GRPC_GENERATED_VERSION = '1.81.0'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
@@ -18,15 +18,17 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + f' but the generated code in chat_pb2_grpc.py depends on'
+        + ' but the generated code in chat_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
     )
 
 
-class ChatServiceStub(object):
-    """Missing associated documentation comment in .proto file."""
+class ChatServiceStub:
+    """── Service ───────────────────────────────────────────────────────────────────
+
+    """
 
     def __init__(self, channel):
         """Constructor.
@@ -39,13 +41,76 @@ class ChatServiceStub(object):
                 request_serializer=chat__pb2.ClientMessage.SerializeToString,
                 response_deserializer=chat__pb2.ServerMessage.FromString,
                 _registered_method=True)
+        self.CreateRoom = channel.unary_unary(
+                '/chat.v1.ChatService/CreateRoom',
+                request_serializer=chat__pb2.CreateRoomRequest.SerializeToString,
+                response_deserializer=chat__pb2.CreateRoomResponse.FromString,
+                _registered_method=True)
+        self.GetMessages = channel.unary_unary(
+                '/chat.v1.ChatService/GetMessages',
+                request_serializer=chat__pb2.GetMessagesRequest.SerializeToString,
+                response_deserializer=chat__pb2.GetMessagesResponse.FromString,
+                _registered_method=True)
+        self.RequestUpload = channel.unary_unary(
+                '/chat.v1.ChatService/RequestUpload',
+                request_serializer=chat__pb2.UploadRequest.SerializeToString,
+                response_deserializer=chat__pb2.UploadResponse.FromString,
+                _registered_method=True)
+        self.GetDownloadUrl = channel.unary_unary(
+                '/chat.v1.ChatService/GetDownloadUrl',
+                request_serializer=chat__pb2.GetDownloadUrlRequest.SerializeToString,
+                response_deserializer=chat__pb2.GetDownloadUrlResponse.FromString,
+                _registered_method=True)
+        self.GetPresence = channel.unary_unary(
+                '/chat.v1.ChatService/GetPresence',
+                request_serializer=chat__pb2.GetPresenceRequest.SerializeToString,
+                response_deserializer=chat__pb2.GetPresenceResponse.FromString,
+                _registered_method=True)
 
 
-class ChatServiceServicer(object):
-    """Missing associated documentation comment in .proto file."""
+class ChatServiceServicer:
+    """── Service ───────────────────────────────────────────────────────────────────
+
+    """
 
     def Chat(self, request_iterator, context):
-        """Missing associated documentation comment in .proto file."""
+        """Bidirectional streaming for live chat, typing indicators, read receipts
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CreateRoom(self, request, context):
+        """Create a DM or group room; DMs are idempotent for the same pair
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetMessages(self, request, context):
+        """Load paginated message history for a room
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def RequestUpload(self, request, context):
+        """Get a presigned HTTP PUT URL to upload a file before sharing in chat
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetDownloadUrl(self, request, context):
+        """Get a fresh presigned HTTP GET URL to download a media object
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetPresence(self, request, context):
+        """Batch presence lookup (online status + last seen)
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -58,6 +123,31 @@ def add_ChatServiceServicer_to_server(servicer, server):
                     request_deserializer=chat__pb2.ClientMessage.FromString,
                     response_serializer=chat__pb2.ServerMessage.SerializeToString,
             ),
+            'CreateRoom': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateRoom,
+                    request_deserializer=chat__pb2.CreateRoomRequest.FromString,
+                    response_serializer=chat__pb2.CreateRoomResponse.SerializeToString,
+            ),
+            'GetMessages': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetMessages,
+                    request_deserializer=chat__pb2.GetMessagesRequest.FromString,
+                    response_serializer=chat__pb2.GetMessagesResponse.SerializeToString,
+            ),
+            'RequestUpload': grpc.unary_unary_rpc_method_handler(
+                    servicer.RequestUpload,
+                    request_deserializer=chat__pb2.UploadRequest.FromString,
+                    response_serializer=chat__pb2.UploadResponse.SerializeToString,
+            ),
+            'GetDownloadUrl': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetDownloadUrl,
+                    request_deserializer=chat__pb2.GetDownloadUrlRequest.FromString,
+                    response_serializer=chat__pb2.GetDownloadUrlResponse.SerializeToString,
+            ),
+            'GetPresence': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetPresence,
+                    request_deserializer=chat__pb2.GetPresenceRequest.FromString,
+                    response_serializer=chat__pb2.GetPresenceResponse.SerializeToString,
+            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
             'chat.v1.ChatService', rpc_method_handlers)
@@ -66,8 +156,10 @@ def add_ChatServiceServicer_to_server(servicer, server):
 
 
  # This class is part of an EXPERIMENTAL API.
-class ChatService(object):
-    """Missing associated documentation comment in .proto file."""
+class ChatService:
+    """── Service ───────────────────────────────────────────────────────────────────
+
+    """
 
     @staticmethod
     def Chat(request_iterator,
@@ -86,6 +178,141 @@ class ChatService(object):
             '/chat.v1.ChatService/Chat',
             chat__pb2.ClientMessage.SerializeToString,
             chat__pb2.ServerMessage.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def CreateRoom(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.v1.ChatService/CreateRoom',
+            chat__pb2.CreateRoomRequest.SerializeToString,
+            chat__pb2.CreateRoomResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetMessages(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.v1.ChatService/GetMessages',
+            chat__pb2.GetMessagesRequest.SerializeToString,
+            chat__pb2.GetMessagesResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def RequestUpload(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.v1.ChatService/RequestUpload',
+            chat__pb2.UploadRequest.SerializeToString,
+            chat__pb2.UploadResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetDownloadUrl(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.v1.ChatService/GetDownloadUrl',
+            chat__pb2.GetDownloadUrlRequest.SerializeToString,
+            chat__pb2.GetDownloadUrlResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetPresence(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.v1.ChatService/GetPresence',
+            chat__pb2.GetPresenceRequest.SerializeToString,
+            chat__pb2.GetPresenceResponse.FromString,
             options,
             channel_credentials,
             insecure,
