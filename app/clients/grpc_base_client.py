@@ -7,15 +7,14 @@ from app.utils.log_utils import log_msg
 load_dotenv()
 
 # Retry config — handles Render free-tier cold starts (502 / UNAVAILABLE)
-_MAX_RETRIES = 3
-_RETRY_DELAY_S = 2.0   # seconds between retries
+_MAX_RETRIES = 5
+_RETRY_DELAY_S = 3.0
 
 
 def _make_channel(target: str):
     """Return a secure channel for *.onrender.com or :443 targets, insecure otherwise."""
     if target.endswith(":443") or ".onrender.com" in target:
         creds = grpc.ssl_channel_credentials()
-        # Render TLS — strip port if already present, enforce 443
         host = target.split(":")[0]
         return grpc.secure_channel(f"{host}:443", creds)
     return grpc.insecure_channel(target)
@@ -23,6 +22,8 @@ def _make_channel(target: str):
 
 class GRPCBaseClient:
     def __init__(self, stub_class, target: str = "localhost:50051"):
+        self._target = target
+        self._stub_class = stub_class
         self.channel = _make_channel(target)
         self.stub = stub_class(self.channel)
 
@@ -31,21 +32,36 @@ class GRPCBaseClient:
             return [("authorization", f"Bearer {token}")] if token else []
         return []
 
+    def _reconnect(self):
+        """Close the stale channel and open a fresh one."""
+        try:
+            self.channel.close()
+        except Exception:
+            pass
+        self.channel = _make_channel(self._target)
+        self.stub = self._stub_class(self.channel)
+
     def _call(self, grpc_method, request, token=None, require_token=True):
         metadata = self._get_metadata(token, require_token)
+        # Resolve method name once so we can rebind after channel recreation
+        method_name = grpc_method.__func__.__name__ if hasattr(grpc_method, '__func__') else None
         last_error = None
         for attempt in range(1, _MAX_RETRIES + 1):
             try:
                 return grpc_method(request, metadata=metadata)
             except grpc.RpcError as e:
                 last_error = e
-                # Retry on UNAVAILABLE (cold start 502) and DEADLINE_EXCEEDED
                 if e.code() in (grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.DEADLINE_EXCEEDED):
                     if attempt < _MAX_RETRIES:
-                        log_msg("warn", f"gRPC {e.code()} on attempt {attempt}/{_MAX_RETRIES}, retrying in {_RETRY_DELAY_S}s — {e.details()}")
+                        log_msg("warn", f"gRPC {e.code()} on attempt {attempt}/{_MAX_RETRIES}, "
+                                        f"reconnecting in {_RETRY_DELAY_S}s — {e.details()}")
                         time.sleep(_RETRY_DELAY_S)
+                        # Recreate channel — stale channels stay broken after 502
+                        self._reconnect()
+                        # Rebind to fresh stub if we know the method name
+                        if method_name and hasattr(self.stub, method_name):
+                            grpc_method = getattr(self.stub, method_name)
                         continue
-                # Non-retryable error — raise immediately
                 log_msg("error", f"gRPC error: {str(e)}")
                 raise e
         log_msg("error", f"gRPC call failed after {_MAX_RETRIES} attempts: {str(last_error)}")
