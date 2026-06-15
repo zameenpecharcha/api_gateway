@@ -127,8 +127,8 @@ class AuthMiddleware:
             return True
 
         # Public paths — no token needed
-        if any(path.startswith(p) for p in [
-            "/health", "/docs", "/redoc", "/openapi.json",
+        if path in ("/", "/health") or any(path.startswith(p) for p in [
+            "/docs", "/redoc", "/openapi.json",
             "/chat", "/static", "/api/v1/ws/chat",
         ]):
             return True
