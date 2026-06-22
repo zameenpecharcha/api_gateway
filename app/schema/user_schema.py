@@ -55,6 +55,7 @@ class Query:
         try:
             log_msg("info", f"Fetching user with ID {id}")
             token = get_token(info)
+            log_msg("info", f"GraphQL token: {repr(token[:30]) if token else 'None'}")
             response = user_service_client.get_user(id, token=token)
 
             if response is None:
@@ -62,6 +63,7 @@ class Query:
 
             # Get user ratings
             ratings_response = user_service_client.get_user_ratings(id,token=token)
+            log_msg("info", f"User ratings response: {ratings_response}")
             ratings = [
                 UserRating(
                     id=rating.id,

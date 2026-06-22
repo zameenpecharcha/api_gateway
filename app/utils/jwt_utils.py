@@ -24,6 +24,7 @@ def decode_jwt_token(token: str):
 
 
 def get_token(info):
-    request = info.context["request"]
-    token = request.headers.get("Authorization", "").split(" ")[-1]
-    return token
+    auth_header = info.context["request"].headers.get("Authorization")
+    if not auth_header:
+        return None
+    return auth_header.replace("Bearer ", "").strip()

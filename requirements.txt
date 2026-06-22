@@ -5,4 +5,5 @@ python-dotenv
 grpcio
 protobuf
 grpcio-tools
-PyJWT
+PyJWT[crypto]
+cryptography
