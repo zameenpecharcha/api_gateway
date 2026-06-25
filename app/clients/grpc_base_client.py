@@ -4,7 +4,15 @@ from app.utils.log_utils import log_msg
 
 class GRPCBaseClient:
     def __init__(self, stub_class, target='localhost:50051'):
-        self.channel = grpc.insecure_channel(target)
+        # Use TLS (secure channel) for port 443 (Render/cloud deployments),
+        # insecure channel for everything else (local / Docker).
+        host_part = target.split(":")[-1]
+        if host_part == "443":
+            log_msg("info", f"GRPCBaseClient: using TLS secure channel for target={target}")
+            self.channel = grpc.secure_channel(target, grpc.ssl_channel_credentials())
+        else:
+            log_msg("info", f"GRPCBaseClient: using insecure channel for target={target}")
+            self.channel = grpc.insecure_channel(target)
         self.stub = stub_class(self.channel)
 
     def _get_metadata(self, token=None, require_token=True):
