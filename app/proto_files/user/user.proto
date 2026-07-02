@@ -4,6 +4,7 @@ package user;
 
 service UserService {
   rpc GetUser (UserRequest) returns (UserResponse);
+  rpc ListUsers (ListUsersRequest) returns (ListUsersResponse);
   rpc CreateUser (CreateUserRequest) returns (UserResponse);
   rpc CreateUserRating (CreateUserRatingRequest) returns (UserRatingResponse);
   rpc GetUserRatings (UserRequest) returns (UserRatingsResponse);
@@ -15,6 +16,17 @@ service UserService {
 
 message UserRequest {
   int64 id = 1;
+}
+
+message ListUsersRequest {
+  string search = 1;
+  int32 page = 2;
+  int32 limit = 3;
+}
+
+message ListUsersResponse {
+  repeated UserResponse users = 1;
+  int32 total = 2;
 }
 
 message CreateUserRequest {

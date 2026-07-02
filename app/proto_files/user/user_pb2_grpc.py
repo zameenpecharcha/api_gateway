@@ -5,7 +5,7 @@ import warnings
 
 from . import user_pb2 as user__pb2
 
-GRPC_GENERATED_VERSION = '1.71.0'
+GRPC_GENERATED_VERSION = '1.81.1'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
@@ -18,14 +18,14 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + f' but the generated code in user_pb2_grpc.py depends on'
+        + ' but the generated code in user_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
     )
 
 
-class UserServiceStub(object):
+class UserServiceStub:
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -38,6 +38,11 @@ class UserServiceStub(object):
                 '/user.UserService/GetUser',
                 request_serializer=user__pb2.UserRequest.SerializeToString,
                 response_deserializer=user__pb2.UserResponse.FromString,
+                _registered_method=True)
+        self.ListUsers = channel.unary_unary(
+                '/user.UserService/ListUsers',
+                request_serializer=user__pb2.ListUsersRequest.SerializeToString,
+                response_deserializer=user__pb2.ListUsersResponse.FromString,
                 _registered_method=True)
         self.CreateUser = channel.unary_unary(
                 '/user.UserService/CreateUser',
@@ -76,10 +81,16 @@ class UserServiceStub(object):
                 _registered_method=True)
 
 
-class UserServiceServicer(object):
+class UserServiceServicer:
     """Missing associated documentation comment in .proto file."""
 
     def GetUser(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ListUsers(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -135,6 +146,11 @@ def add_UserServiceServicer_to_server(servicer, server):
                     request_deserializer=user__pb2.UserRequest.FromString,
                     response_serializer=user__pb2.UserResponse.SerializeToString,
             ),
+            'ListUsers': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListUsers,
+                    request_deserializer=user__pb2.ListUsersRequest.FromString,
+                    response_serializer=user__pb2.ListUsersResponse.SerializeToString,
+            ),
             'CreateUser': grpc.unary_unary_rpc_method_handler(
                     servicer.CreateUser,
                     request_deserializer=user__pb2.CreateUserRequest.FromString,
@@ -178,7 +194,7 @@ def add_UserServiceServicer_to_server(servicer, server):
 
 
  # This class is part of an EXPERIMENTAL API.
-class UserService(object):
+class UserService:
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
@@ -198,6 +214,33 @@ class UserService(object):
             '/user.UserService/GetUser',
             user__pb2.UserRequest.SerializeToString,
             user__pb2.UserResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ListUsers(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/ListUsers',
+            user__pb2.ListUsersRequest.SerializeToString,
+            user__pb2.ListUsersResponse.FromString,
             options,
             channel_credentials,
             insecure,

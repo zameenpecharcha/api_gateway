@@ -1,9 +1,11 @@
 fastapi
 strawberry-graphql
-uvicorn
+uvicorn[standard]
+websockets
 python-dotenv
 grpcio
 protobuf
 grpcio-tools
 PyJWT[crypto]
 cryptography
+boto3

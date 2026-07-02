@@ -6,6 +6,7 @@ import typing
 from app.clients.post.post_client import post_service_client
 
 from app.utils.jwt_utils import get_token
+from app.utils.s3_utils import generate_presigned_get_url_from_url
 from strawberry.types import Info
 
 logger = logging.getLogger(__name__)
@@ -69,6 +70,7 @@ class PostMedia:
     mediaSize: Optional[int]
     caption: Optional[str]
     uploadedAt: datetime
+    signedUrl: Optional[str] = None
 
 @strawberry.input
 class PostMediaInput:
@@ -98,6 +100,10 @@ class Post:
     media: List[PostMedia]
     likeCount: int
     commentCount: int
+    userProfilePhoto: Optional[str] = None
+    userProfilePhotoSignedUrl: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
     @classmethod
     def from_dict(cls, data: dict):
@@ -111,9 +117,11 @@ class Post:
                 mediaOrder=m['mediaOrder'],
                 mediaSize=m.get('mediaSize'),
                 caption=m.get('caption'),
-                uploadedAt=m['uploadedAt']
+                uploadedAt=m['uploadedAt'],
+                signedUrl=generate_presigned_get_url_from_url(m['mediaUrl']) if m.get('mediaUrl') else None
             ) for m in data.get('media', [])
         ]
+        user_profile_photo = data.get('userProfilePhoto')
         return cls(
             id=data['id'],
             userId=data['userId'],
@@ -133,7 +141,11 @@ class Post:
             createdAt=data['createdAt'],
             media=media_list,
             likeCount=data['likeCount'],
-            commentCount=data['commentCount']
+            commentCount=data['commentCount'],
+            userProfilePhoto=user_profile_photo,
+            userProfilePhotoSignedUrl=generate_presigned_get_url_from_url(user_profile_photo) if user_profile_photo else None,
+            latitude=data.get('latitude'),
+            longitude=data.get('longitude')
         )
 
 @strawberry.type

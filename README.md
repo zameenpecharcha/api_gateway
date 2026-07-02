@@ -733,5 +733,5 @@ mutation UnlikeComment {
 
 All queries and mutations are accessible through the GraphQL endpoint:
 ```
-POST http://localhost:8000/api/v1/graphql
+POST http://localhost:8080/api/v1/graphql
 ```

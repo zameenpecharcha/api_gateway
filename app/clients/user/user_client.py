@@ -67,5 +67,9 @@ class UserServiceClient(GRPCBaseClient):
         )
         return self._call("CheckFollowingStatus", request,token=token)
 
+    def list_users(self, search: str = "", page: int = 1, limit: int = 50, token=None):
+        request = user_pb2.ListUsersRequest(search=search, page=page, limit=limit)
+        return self._call("ListUsers", request, token=token)
+
 
 user_service_client = UserServiceClient()

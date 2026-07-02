@@ -6,6 +6,7 @@ from app.clients.user.user_client import user_service_client
 from strawberry.types import Info
 
 from app.utils.jwt_utils import get_token
+from app.utils.s3_utils import generate_presigned_get_url_from_url
 
 
 @strawberry.type
@@ -16,6 +17,9 @@ class User:
     email: str
     phone: str
     profile_photo: typing.Optional[str] = None
+    cover_photo: typing.Optional[str] = None
+    profile_photo_signed_url: typing.Optional[str] = None
+    cover_photo_signed_url: typing.Optional[str] = None
     role: typing.Optional[str] = None
     address: typing.Optional[str] = None
     latitude: typing.Optional[float] = None
@@ -81,6 +85,7 @@ class Query:
             followers = user_service_client.get_user_followers(id,token=token)
             following = user_service_client.get_user_following(id,token=token)
 
+            cover_photo = getattr(response, 'cover_photo', None) or None
             return User(
                 id=response.id,
                 first_name=response.first_name,
@@ -88,6 +93,9 @@ class Query:
                 email=response.email,
                 phone=response.phone,
                 profile_photo=response.profile_photo,
+                cover_photo=cover_photo,
+                profile_photo_signed_url=generate_presigned_get_url_from_url(response.profile_photo) if response.profile_photo else None,
+                cover_photo_signed_url=generate_presigned_get_url_from_url(cover_photo) if cover_photo else None,
                 role=response.role,
                 address=response.address,
                 latitude=response.latitude,
@@ -205,6 +213,39 @@ class Query:
                 str(e)
             ).to_graphql_error()
 
+    @strawberry.field
+    def users(self, info: Info, search: typing.Optional[str] = "", page: int = 1, limit: int = 50) -> typing.List[User]:
+        try:
+            token = get_token(info)
+            response = user_service_client.list_users(search=search or "", page=page, limit=limit, token=token)
+            result = []
+            for u in response.users:
+                cover_photo = getattr(u, 'cover_photo', None) or None
+                result.append(User(
+                    id=u.id,
+                    first_name=u.first_name,
+                    last_name=u.last_name,
+                    email=u.email,
+                    phone=u.phone,
+                    profile_photo=u.profile_photo or None,
+                    cover_photo=cover_photo,
+                    profile_photo_signed_url=generate_presigned_get_url_from_url(u.profile_photo) if u.profile_photo else None,
+                    cover_photo_signed_url=None,
+                    role=u.role or None,
+                    address=u.address or None,
+                    latitude=getattr(u, 'latitude', None) or None,
+                    longitude=getattr(u, 'longitude', None) or None,
+                    bio=getattr(u, 'bio', None) or None,
+                    isactive=u.isActive,
+                    email_verified=u.email_verified,
+                    phone_verified=u.phone_verified,
+                    created_at=u.created_at,
+                ))
+            return result
+        except Exception as e:
+            log_msg("error", f"Error listing users: {str(e)}")
+            return []
+
 @strawberry.type
 class Mutation:
     @strawberry.mutation
@@ -238,6 +279,7 @@ class Mutation:
                 bio=bio,
                 token=token
             )
+            cover_photo = getattr(response, 'cover_photo', None) or None
             return User(
                 id=response.id,
                 first_name=response.first_name,
@@ -245,6 +287,9 @@ class Mutation:
                 email=response.email,
                 phone=response.phone,
                 profile_photo=response.profile_photo,
+                cover_photo=cover_photo,
+                profile_photo_signed_url=generate_presigned_get_url_from_url(response.profile_photo) if response.profile_photo else None,
+                cover_photo_signed_url=generate_presigned_get_url_from_url(cover_photo) if cover_photo else None,
                 role=response.role,
                 address=response.address,
                 latitude=response.latitude,
