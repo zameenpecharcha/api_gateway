@@ -1,0 +1,31 @@
+# ── Service URLs ──────────────────────────────────────────────────────────────
+# Render public URLs — gRPC clients auto-use TLS on :443
+# For local dev, change to localhost:PORT (insecure channel used automatically)
+
+# AUTH_SERVICE_URL=auth-service-zpqr.onrender.com:443
+# USER_SERVICE_URL=user-service-w4d8.onrender.com:443
+# POST_SERVICE_URL=post-service-9gu9.onrender.com:443
+# PROPERTY_SERVICE_URL=property-service-a39a.onrender.com:443
+# CHAT_SERVICE_URL=chat-service-4b76.onrender.com:443
+
+#LOCAL
+#LOCAL
+CHAT_SERVICE_URL=host.docker.internal:50051
+AUTH_SERVICE_URL=host.docker.internal:50052
+USER_SERVICE_URL=host.docker.internal:50053
+PROPERTY_SERVICE_URL=host.docker.internal:50054
+POST_SERVICE_URL=host.docker.internal:50055
+
+
+
+# ── JWT ───────────────────────────────────────────────────────────────────────
+JWT_SECRET=your-jwt-secret-here
+JWT_ALGORITHM=RS256
+
+# ── HTTP server ───────────────────────────────────────────────────────────────
+# Render assigns PORT automatically — default 8000 for local dev
+PORT=8080
+OLA_MAPS_API_KEY=3tciF6HzltOYWdvtATHfpObawYxpk1pte2yExXVU
+# ── CORS ──────────────────────────────────────────────────────────────────────
+# Space-separated allowed origins (add your Vercel URL here)
+ALLOWED_ORIGINS=https://zpc-userinterface.vercel.app http://localhost:3000

@@ -7,3 +7,5 @@ protobuf
 grpcio-tools
 PyJWT[crypto]
 cryptography
+httpx
+truststore
