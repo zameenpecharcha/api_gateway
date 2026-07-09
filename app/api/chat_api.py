@@ -37,6 +37,25 @@ _EVENT_TYPE_DELETE        = 5
 _EVENT_TYPE_PRESENCE      = 6
 
 
+def _ws_auth_header(websocket: WebSocket) -> str | None:
+    # Browser WebSocket cannot set custom headers directly, so accept token via
+    # query param/cookie and normalize to gRPC authorization metadata.
+    auth = websocket.headers.get("authorization")
+    if auth:
+        return auth
+
+    token = (
+        websocket.query_params.get("token")
+        or websocket.cookies.get("token")
+        or websocket.cookies.get("access_token")
+        or websocket.cookies.get("auth_token")
+    )
+    if token:
+        return token if token.lower().startswith("bearer ") else f"Bearer {token}"
+
+    return None
+
+
 def _build_client_msg(room_id: str, user_id: str, data: dict) -> chat_pb2.ClientMessage:
     """Convert a browser JSON payload to a ClientMessage proto."""
     return chat_pb2.ClientMessage(
@@ -114,22 +133,34 @@ async def chat_ws(websocket: WebSocket, room_id: str, user_id: str):
     """
     await websocket.accept()
 
+    auth_header = _ws_auth_header(websocket)
+    if not auth_header:
+        await websocket.send_json({"error": "missing authorization token"})
+        await websocket.close(code=1008)
+        return
+
     if CHAT_CHANNEL_SECURE:
         channel = grpc_aio.secure_channel(CHAT_SERVICE_TARGET, grpc.ssl_channel_credentials())
     else:
         channel = grpc_aio.insecure_channel(CHAT_SERVICE_TARGET)
     stub = chat_pb2_grpc.ChatServiceStub(channel)
-    call = stub.Chat()
+    call = stub.Chat(metadata=[("authorization", auth_header)])
 
     # Register in the hub (first frame: room_id + user_id only, no content)
-    await call.write(
-        chat_pb2.ClientMessage(
-            room_id=room_id,
-            user_id=user_id,
-            message_id=str(uuid.uuid4()),
-            sent_at_unix_ms=int(time.time() * 1000),
+    try:
+        await call.write(
+            chat_pb2.ClientMessage(
+                room_id=room_id,
+                user_id=user_id,
+                message_id=str(uuid.uuid4()),
+                sent_at_unix_ms=int(time.time() * 1000),
+            )
         )
-    )
+    except Exception:
+        await websocket.send_json({"error": "chat authentication failed"})
+        await websocket.close(code=1008)
+        await channel.close()
+        return
 
     async def ws_to_grpc():
         try:
