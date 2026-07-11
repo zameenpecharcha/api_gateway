@@ -29,7 +29,10 @@ class GRPCBaseClient:
     def _call(self, method_name, request, token=None, require_token=True):
         try:
             metadata = self._get_metadata(token, require_token)
-            grpc_method = getattr(self.stub, method_name)
+            if isinstance(method_name, str):
+                grpc_method = getattr(self.stub, method_name)
+            else:
+                grpc_method = method_name
             return grpc_method(request, metadata=metadata)
         except grpc.RpcError as e:
             log_msg("error", f"gRPC error: {str(e)}")

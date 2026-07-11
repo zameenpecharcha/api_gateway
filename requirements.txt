@@ -9,3 +9,4 @@ PyJWT[crypto]
 cryptography
 httpx
 truststore
+boto3

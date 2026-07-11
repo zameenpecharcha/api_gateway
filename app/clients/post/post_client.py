@@ -1,6 +1,6 @@
-import os
 import grpc
 import base64
+import os
 from datetime import datetime
 from typing import Optional
 from dotenv import load_dotenv
@@ -33,7 +33,7 @@ class PostsServiceClient(GRPCBaseClient):
                      status: str = None, page: int = 1, limit: int = 10,token=None):
         try:
             request = post_pb2.SearchPostsRequest(
-                property_type=property_type or "",
+                type=property_type or "",
                 location=location or "",
                 min_price=min_price or 0.0,
                 max_price=max_price or 0.0,
@@ -41,32 +41,27 @@ class PostsServiceClient(GRPCBaseClient):
                 page=page,
                 limit=limit
             )
-            return self._call("SearchPosts", request,token=token)
+            return self._call(self.stub.SearchPosts, request,token=token)
         except grpc.RpcError as e:
             print(f"Error in search_posts: {str(e)}")
             return None
 
     def create_post(self, user_id: int, title: str, content: str,
                     visibility: str, property_type: str, location: str,
-                    map_location: str, price: float, status: str,
-                    media: list = None,token=None) -> dict:
+                    price: float, status: str,
+                    latitude: float = None, longitude: float = None,
+                    media: list = None, token=None) -> dict:
         try:
             media_list = []
             if media:
                 for m in media:
-                    try:
-                        media_data = base64.b64decode(m.mediaData)
-                    except Exception as e:
-                        return {
-                            'success': False,
-                            'message': f'Invalid media data format: {str(e)}'
-                        }
-
                     media_upload = post_pb2.PostMediaUpload(
-                        media_type=m.mediaType,
-                        media_data=media_data,
-                        media_order=m.mediaOrder,
-                        caption=m.caption
+                        media_type=getattr(m, 'mediaType', None) or '',
+                        media_order=getattr(m, 'mediaOrder', None) or 1,
+                        caption=getattr(m, 'caption', None) or '',
+                        file_name=getattr(m, 'fileName', None) or '',
+                        content_type=getattr(m, 'contentType', None) or '',
+                        file_path=getattr(m, 'filePath', None) or ''
                     )
                     media_list.append(media_upload)
 
@@ -75,14 +70,15 @@ class PostsServiceClient(GRPCBaseClient):
                 title=title,
                 content=content,
                 visibility=visibility,
-                property_type=property_type,
+                type=property_type,
                 location=location,
-                map_location=map_location,
+                latitude=latitude or 0.0,
+                longitude=longitude or 0.0,
                 price=price,
                 status=status,
                 media=media_list
             )
-            response = self._call("CreatePost", request,token=token)
+            response = self._call(self.stub.CreatePost, request,token=token)
 
             # Convert the gRPC response to a dictionary
             if response.post:
@@ -104,9 +100,12 @@ class PostsServiceClient(GRPCBaseClient):
                     'title': response.post.title,
                     'content': response.post.content,
                     'visibility': response.post.visibility,
-                    'propertyType': response.post.property_type,
+                    'propertyType': response.post.type,
                     'location': response.post.location,
-                    'mapLocation': response.post.map_location,
+                     # mapLocation deprecated; keep for backward mapping if present
+                    # mapLocation removed
+                    'latitude': getattr(response.post, 'latitude', 0.0),
+                    'longitude': getattr(response.post, 'longitude', 0.0),
                     'price': response.post.price,
                     'status': response.post.status,
                     'createdAt': datetime.fromtimestamp(response.post.created_at),
@@ -132,7 +131,7 @@ class PostsServiceClient(GRPCBaseClient):
     def get_post(self, post_id: int,token=None):
         try:
             request = post_pb2.PostRequest(post_id=post_id)
-            return self._call("GetPost", request,token=token)
+            return self._call(self.stub.GetPost, request,token=token)
         except grpc.RpcError as e:
             return None
 
@@ -141,17 +140,22 @@ class PostsServiceClient(GRPCBaseClient):
             # Filter out None values
             update_data = {k: v for k, v in kwargs.items() if v is not None}
 
-            # Convert camelCase to snake_case for property_type and map_location
+            # Convert camelCase to snake_case for fields and map GraphQL propertyType to gRPC 'type'
             if 'propertyType' in update_data:
-                update_data['property_type'] = update_data.pop('propertyType')
+                update_data['type'] = update_data.pop('propertyType')
+            # mapLocation removed; ignore if present
             if 'mapLocation' in update_data:
-                update_data['map_location'] = update_data.pop('mapLocation')
+                update_data.pop('mapLocation')
+            if 'latitude' in update_data:
+                update_data['latitude'] = update_data['latitude']
+            if 'longitude' in update_data:
+                update_data['longitude'] = update_data['longitude']
 
             request = post_pb2.PostUpdateRequest(
                 post_id=post_id,
                 **update_data
             )
-            response = self._call("UpdatePost", request,token=token)
+            response = self._call(self.stub.UpdatePost, request,token=token)
 
             # Convert the gRPC response to a dictionary
             if response.post:
@@ -173,9 +177,11 @@ class PostsServiceClient(GRPCBaseClient):
                     'title': response.post.title,
                     'content': response.post.content,
                     'visibility': response.post.visibility,
-                    'propertyType': response.post.property_type,
+                    'propertyType': response.post.type,
                     'location': response.post.location,
-                    'mapLocation': response.post.map_location,
+                    # mapLocation removed
+                    'latitude': getattr(response.post, 'latitude', 0.0),
+                    'longitude': getattr(response.post, 'longitude', 0.0),
                     'price': response.post.price,
                     'status': response.post.status,
                     'createdAt': datetime.fromtimestamp(response.post.created_at),
@@ -201,7 +207,7 @@ class PostsServiceClient(GRPCBaseClient):
     def delete_post(self, post_id: int,token=None):
         try:
             request = post_pb2.PostRequest(post_id=post_id)
-            response = self._call("DeletePost", request,token=token)
+            response = self._call(self.stub.DeletePost, request,token=token)
             return {
                 'success': True,
                 'message': 'Post deleted successfully'
@@ -219,7 +225,7 @@ class PostsServiceClient(GRPCBaseClient):
                 page=page,
                 limit=limit
             )
-            response = self._call("GetPostsByUser", request,token=token)
+            response = self._call(self.stub.GetPostsByUser, request,token=token)
             return response.posts
         except grpc.RpcError as e:
             return []
@@ -228,7 +234,7 @@ class PostsServiceClient(GRPCBaseClient):
         try:
             # First check if the post exists
             post_request = post_pb2.PostRequest(post_id=post_id)
-            post_response = self._call("GetPost", post_request,token=token)
+            post_response = self._call(self.stub.GetPost, post_request,token=token)
             if not post_response.post:
                 return {
                     'success': False,
@@ -241,7 +247,7 @@ class PostsServiceClient(GRPCBaseClient):
                 user_id=user_id,
                 reaction_type='like'
             )
-            response = self._call("LikePost", request,token=token)
+            response = self._call(self.stub.LikePost, request,token=token)
 
             # Convert the gRPC response to a dictionary
             if response.post:
@@ -263,9 +269,9 @@ class PostsServiceClient(GRPCBaseClient):
                     'title': response.post.title,
                     'content': response.post.content,
                     'visibility': response.post.visibility,
-                    'propertyType': response.post.property_type,
+                    'propertyType': response.post.type,
                     'location': response.post.location,
-                    'mapLocation': response.post.map_location,
+                    # mapLocation removed
                     'price': response.post.price,
                     'status': response.post.status,
                     'createdAt': datetime.fromtimestamp(response.post.created_at),
@@ -294,7 +300,7 @@ class PostsServiceClient(GRPCBaseClient):
                 post_id=post_id,  # Changed from id to post_id
                 user_id=user_id
             )
-            response = self._call("UnlikePost", request,token=token)
+            response = self._call(self.stub.UnlikePost, request,token=token)
 
             # Convert the gRPC response to a dictionary
             if response.post:
@@ -316,9 +322,9 @@ class PostsServiceClient(GRPCBaseClient):
                     'title': response.post.title,
                     'content': response.post.content,
                     'visibility': response.post.visibility,
-                    'propertyType': response.post.property_type,
+                    'propertyType': response.post.type,
                     'location': response.post.location,
-                    'mapLocation': response.post.map_location,
+                    # mapLocation removed
                     'price': response.post.price,
                     'status': response.post.status,
                     'createdAt': datetime.fromtimestamp(response.post.created_at),
@@ -343,8 +349,8 @@ class PostsServiceClient(GRPCBaseClient):
 
     def delete_post_media(self, media_id: int,token=None) -> dict:
         try:
-            request = post_pb2.PostRequest(post_id=media_id)
-            response = self._call("DeletePostMedia", request,token=token)
+            request = post_pb2.MediaIdRequest(media_id=media_id)
+            response = self._call(self.stub.DeletePostMedia, request,token=token)
 
             return {
                 'success': response.success,
@@ -360,19 +366,13 @@ class PostsServiceClient(GRPCBaseClient):
         try:
             media_list = []
             for m in media:
-                try:
-                    media_data = base64.b64decode(m.mediaData)
-                except Exception as e:
-                    return {
-                        'success': False,
-                        'message': f'Invalid media data format: {str(e)}'
-                    }
-
                 media_upload = post_pb2.PostMediaUpload(
-                    media_type=m.mediaType,
-                    media_data=media_data,
-                    media_order=m.mediaOrder,
-                    caption=m.caption
+                    media_type=getattr(m, 'mediaType', None) or 'image',
+                    media_order=getattr(m, 'mediaOrder', None) or 1,
+                    caption=getattr(m, 'caption', None) or '',
+                    file_name=getattr(m, 'fileName', None) or '',
+                    content_type=getattr(m, 'contentType', None) or '',
+                    file_path=getattr(m, 'filePath', None) or ''
                 )
                 media_list.append(media_upload)
 
@@ -380,7 +380,7 @@ class PostsServiceClient(GRPCBaseClient):
                 post_id=post_id,
                 media=media_list
             )
-            response = self._call("AddPostMedia", request,token=token)
+            response = self._call(self.stub.AddPostMedia, request,token=token)
 
             # Convert the gRPC response to a dictionary
             if response.post:
@@ -402,9 +402,9 @@ class PostsServiceClient(GRPCBaseClient):
                     'title': response.post.title,
                     'content': response.post.content,
                     'visibility': response.post.visibility,
-                    'propertyType': response.post.property_type,
+                    'propertyType': response.post.type,
                     'location': response.post.location,
-                    'mapLocation': response.post.map_location,
+                    # mapLocation removed
                     'price': response.post.price,
                     'status': response.post.status,
                     'createdAt': datetime.fromtimestamp(response.post.created_at),
@@ -436,7 +436,7 @@ class PostsServiceClient(GRPCBaseClient):
                 comment=comment,
                 parent_comment_id=parent_comment_id or 0
             )
-            response = self._call("CreateComment", request,token=token)
+            response = self._call(self.stub.CreateComment, request,token=token)
 
             # Convert the gRPC response to a dictionary
             if response and response.comment:
@@ -479,28 +479,29 @@ class PostsServiceClient(GRPCBaseClient):
                 comment=comment,
                 status=status
             )
-            response = self._call("UpdateComment", request,token=token)
+            response = self._call(self.stub.UpdateComment, request,token=token)
 
             # Convert the gRPC response to a dictionary
-            if response:
+            if response and response.comment:
+                c = response.comment
                 comment_dict = {
-                    'id': response.id,
-                    'postId': response.post_id,
-                    'userId': response.user_id,
-                    'comment': response.comment,
-                    'parentCommentId': response.parent_comment_id if response.parent_comment_id != 0 else None,
-                    'status': response.status,
-                    'addedAt': datetime.fromtimestamp(response.added_at),
-                    'commentedAt': datetime.fromtimestamp(response.commented_at),
-                    'replies': [],  # Replies will be fetched separately if needed
-                    'likeCount': response.like_count
+                    'id': c.id,
+                    'postId': c.post_id,
+                    'userId': c.user_id,
+                    'comment': c.comment,
+                    'parentCommentId': c.parent_comment_id if c.parent_comment_id != 0 else None,
+                    'status': c.status,
+                    'addedAt': datetime.fromtimestamp(c.added_at),
+                    'commentedAt': datetime.fromtimestamp(c.commented_at),
+                    'replies': [],
+                    'likeCount': c.like_count
                 }
             else:
                 comment_dict = None
 
             return {
-                'success': True,
-                'message': 'Comment updated successfully',
+                'success': response.success if response else False,
+                'message': response.message if response else 'Failed to update comment',
                 'comment': comment_dict
             }
         except grpc.RpcError as e:
@@ -512,8 +513,8 @@ class PostsServiceClient(GRPCBaseClient):
 
     def delete_comment(self, comment_id: int,token=None) -> dict:
         try:
-            request = post_pb2.PostRequest(post_id=comment_id)  # Using PostRequest for comment_id
-            response = self._call("DeleteComment", request,token=token)
+            request = post_pb2.CommentRequest(comment_id=comment_id)
+            response = self._call(self.stub.DeleteComment, request,token=token)
             return {
                 'success': True,
                 'message': 'Comment deleted successfully',
@@ -533,7 +534,7 @@ class PostsServiceClient(GRPCBaseClient):
                 user_id=user_id,
                 reaction_type='like'
             )
-            response = self._call("LikeComment", request,token=token)
+            response = self._call(self.stub.LikeComment, request,token=token)
 
             # Convert the gRPC response to a dictionary
             if response.comment:
@@ -570,7 +571,7 @@ class PostsServiceClient(GRPCBaseClient):
                 comment_id=comment_id,
                 user_id=user_id
             )
-            response = self._call("UnlikeComment", request,token=token)
+            response = self._call(self.stub.UnlikeComment, request,token=token)
 
             # Convert the gRPC response to a dictionary
             if response.comment:

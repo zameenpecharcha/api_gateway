@@ -34,8 +34,8 @@ message Property {
     int32 year_built = 12;
     repeated string images = 13;
     repeated string amenities = 14;
-    int64 created_at = 15;
-    int64 updated_at = 16;
+    string created_at = 15; // formatted timestamp
+    string updated_at = 16; // formatted timestamp
     int32 view_count = 17;
     double latitude = 18;
     double longitude = 19;
@@ -45,6 +45,8 @@ message Property {
     string country = 23;
     string zip_code = 24;
     bool is_active = 25;
+    int64 cover_photo_id = 26;
+    int64 profile_photo_id = 27;
 }
 
 // Property List Message
@@ -92,5 +94,97 @@ service PropertyService {
     rpc DeleteProperty(PropertyRequest) returns (PropertyResponse) {}
     rpc SearchProperties(PropertySearchRequest) returns (PropertyListResponse) {}
     rpc ListProperties(PropertyRequest) returns (PropertyListResponse) {}
+    rpc GetUserProperties(PropertyRequest) returns (PropertyListResponse) {}
     rpc IncrementViewCount(PropertyRequest) returns (PropertyResponse) {}
+
+    // Ratings (polymorphic table - here we use rated_type='property')
+    rpc CreatePropertyRating(PropertyRatingCreateRequest) returns (PropertyRatingResponse) {}
+    rpc GetPropertyRatings(PropertyRequest) returns (PropertyRatingsResponse) {}
+
+    // Followers (polymorphic table - followee_type='property')
+    rpc FollowProperty(PropertyFollowRequest) returns (PropertyFollowResponse) {}
+    rpc GetPropertyFollowers(PropertyRequest) returns (PropertyFollowersResponse) {}
+    rpc AddPropertyMedia(PropertyMediaRequest) returns (PropertyMediaResponse) {}
+    rpc UpdatePropertyProfilePhoto(UpdatePropertyPhotoRequest) returns (PropertyResponse) {}
+    rpc UpdatePropertyCoverPhoto(UpdatePropertyPhotoRequest) returns (PropertyResponse) {}
 } 
+
+message PropertyRatingCreateRequest {
+    int64 property_id = 1;
+    int64 rated_by_user_id = 2;
+    int32 rating_value = 3;
+    string title = 4;
+    string review = 5;
+    string rating_type = 6;
+    bool is_anonymous = 7;
+}
+
+message PropertyRatingResponse {
+    int64 id = 1;
+    int64 property_id = 2;
+    int64 rated_by_user_id = 3;
+    int32 rating_value = 4;
+    string title = 5;
+    string review = 6;
+    string rating_type = 7;
+    bool is_anonymous = 8;
+    string created_at = 9;   // formatted timestamp e.g., "2025-08-10 16:06:08.345872"
+    string updated_at = 10;  // formatted timestamp
+}
+
+message PropertyRatingsResponse {
+    repeated PropertyRatingResponse ratings = 1;
+}
+
+message PropertyFollowRequest {
+    int64 user_id = 1;
+    int64 property_id = 2;
+    string status = 3;
+}
+
+message PropertyFollowResponse {
+    int64 id = 1;
+    int64 user_id = 2;
+    int64 property_id = 3;
+    string status = 4;
+    string followed_at = 5; // formatted timestamp e.g., "2025-08-10 16:06:08.345872"
+}
+
+message PropertyFollowersResponse {
+    repeated PropertyFollowResponse followers = 1;
+}
+
+message PropertyMediaUpload {
+    string file_path = 1;
+    string media_type = 2;
+    int32 media_order = 3;
+    string caption = 4;
+    string content_type = 5;
+}
+
+message PropertyMediaRequest {
+    int64 property_id = 1;
+    repeated PropertyMediaUpload media = 2;
+}
+
+message PropertyMediaItem {
+    int64 id = 1;
+    int64 property_id = 2;
+    string media_type = 3;
+    string media_url = 4;
+    int32 media_order = 5;
+    int64 media_size = 6;
+    string caption = 7;
+    string uploaded_at = 8; // formatted timestamp
+}
+
+message PropertyMediaResponse {
+    bool success = 1;
+    string message = 2;
+    repeated PropertyMediaItem media = 3;
+}
+
+message UpdatePropertyPhotoRequest {
+  int64 property_id = 1;
+  PropertyMediaUpload media = 2;
+}

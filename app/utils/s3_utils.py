@@ -4,12 +4,19 @@ from typing import Optional, Tuple
 from urllib.parse import urlparse
 
 
+def _env(name: str, default: Optional[str] = None) -> Optional[str]:
+    value = os.getenv(name, default)
+    if value is None:
+        return None
+    return value.strip().strip('"').strip("'")
+
+
 def _s3_client(region: Optional[str] = None):
-    region_name = region or os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION") or "us-east-1"
+    region_name = _env("AWS_REGION") or _env("AWS_DEFAULT_REGION") or region or "us-east-1"
     client_kwargs = {"region_name": region_name}
-    aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
-    aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-    aws_session_token = os.getenv("AWS_SESSION_TOKEN")
+    aws_access_key_id = _env("AWS_ACCESS_KEY_ID")
+    aws_secret_access_key = _env("AWS_SECRET_ACCESS_KEY")
+    aws_session_token = _env("AWS_SESSION_TOKEN")
     
     print(f"AWS Region: {region_name}")
     print(f"Has AWS Key: {bool(aws_access_key_id)}")
@@ -30,8 +37,8 @@ def build_post_object_key(file_name: str) -> str:
 
 
 def generate_presigned_put_url(file_name: str, content_type: Optional[str] = None, expires_in: int = 3600) -> Tuple[str, str, str]:
-    bucket = os.getenv("S3_BUCKET_NAME") or os.getenv("AWS_S3_BUCKET") or "zpc-app"
-    region = os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION") or "us-east-1"
+    bucket = _env("S3_BUCKET_NAME") or _env("AWS_S3_BUCKET") or "zpc-app"
+    region = _env("AWS_REGION") or _env("AWS_DEFAULT_REGION") or "us-east-1"
     key = build_post_object_key(file_name)
     
     print(f"=== Generating presigned PUT URL ===")

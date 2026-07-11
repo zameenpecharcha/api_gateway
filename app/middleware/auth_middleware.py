@@ -9,11 +9,17 @@ from starlette.responses import JSONResponse, Response
 from app.clients.auth.auth_client import auth_service_client
 from app.utils.log_utils import log_msg
 
+# Public GraphQL operation names (matched case-insensitively)
+# Add any operation here to bypass the auth middleware
 PUBLIC_GRAPHQL_OPS = {
-    "login", "register", "sendotp", "verifyotp", "forgotpassword", "logout",
+    "login",
+    "sendotp",
+    "verifyotp",
+    "forgotpassword",
+    "resetpassword",
     "createuser",
-    # chat operations — authenticated via WebSocket session
-    "createdmroom", "creategrouproom", "requestchatupload", "chatdownloadurl",
+    "logout",
+    "olaautocomplete","createdmroom", "creategrouproom", "requestchatupload", "chatdownloadurl",  # Added for location search
 }
 
 # CORS origins — same source as run_gateway.py
@@ -69,6 +75,11 @@ class AuthMiddleware:
             return {"type": "http.request", "body": body, "more_body": False}
 
         request = Request(scope, receive=receive_with_body)
+
+        # Always allow OPTIONS requests for CORS
+        if request.method == "OPTIONS":
+            await self.app(scope, receive_with_body, send)
+            return
 
         if self._should_skip_auth(request, body):
             await self.app(scope, receive_with_body, send)
@@ -144,9 +155,16 @@ class AuthMiddleware:
                     op_name = match.group(2).lower()
                     if op_name in PUBLIC_GRAPHQL_OPS:
                         return True
-                # If no named operation matched, still pass through
-                # (resolvers enforce auth via Info context)
-                return True
+                # 2) First field name in the selection set
+                field_match = re.search(r"\{\s*(\w+)", query)
+                if field_match:
+                    field_name = field_match.group(1).lower()
+                    if field_name in PUBLIC_GRAPHQL_OPS:
+                        return True
+                # 3) Explicit operationName in request JSON
+                op_name_json = parsed.get("operationName")
+                if isinstance(op_name_json, str) and op_name_json.lower() in PUBLIC_GRAPHQL_OPS:
+                    return True
             except Exception as e:
                 log_msg("warn", f"Failed to parse GraphQL operation: {e}")
                 return True  # pass through on parse error — resolver handles auth

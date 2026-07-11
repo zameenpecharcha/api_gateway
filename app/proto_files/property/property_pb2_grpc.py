@@ -5,7 +5,7 @@ import warnings
 
 from . import property_pb2 as property__pb2
 
-GRPC_GENERATED_VERSION = '1.71.0'
+GRPC_GENERATED_VERSION = '1.73.1'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
@@ -65,9 +65,49 @@ class PropertyServiceStub(object):
                 request_serializer=property__pb2.PropertyRequest.SerializeToString,
                 response_deserializer=property__pb2.PropertyListResponse.FromString,
                 _registered_method=True)
+        self.GetUserProperties = channel.unary_unary(
+                '/property.PropertyService/GetUserProperties',
+                request_serializer=property__pb2.PropertyRequest.SerializeToString,
+                response_deserializer=property__pb2.PropertyListResponse.FromString,
+                _registered_method=True)
         self.IncrementViewCount = channel.unary_unary(
                 '/property.PropertyService/IncrementViewCount',
                 request_serializer=property__pb2.PropertyRequest.SerializeToString,
+                response_deserializer=property__pb2.PropertyResponse.FromString,
+                _registered_method=True)
+        self.CreatePropertyRating = channel.unary_unary(
+                '/property.PropertyService/CreatePropertyRating',
+                request_serializer=property__pb2.PropertyRatingCreateRequest.SerializeToString,
+                response_deserializer=property__pb2.PropertyRatingResponse.FromString,
+                _registered_method=True)
+        self.GetPropertyRatings = channel.unary_unary(
+                '/property.PropertyService/GetPropertyRatings',
+                request_serializer=property__pb2.PropertyRequest.SerializeToString,
+                response_deserializer=property__pb2.PropertyRatingsResponse.FromString,
+                _registered_method=True)
+        self.FollowProperty = channel.unary_unary(
+                '/property.PropertyService/FollowProperty',
+                request_serializer=property__pb2.PropertyFollowRequest.SerializeToString,
+                response_deserializer=property__pb2.PropertyFollowResponse.FromString,
+                _registered_method=True)
+        self.GetPropertyFollowers = channel.unary_unary(
+                '/property.PropertyService/GetPropertyFollowers',
+                request_serializer=property__pb2.PropertyRequest.SerializeToString,
+                response_deserializer=property__pb2.PropertyFollowersResponse.FromString,
+                _registered_method=True)
+        self.AddPropertyMedia = channel.unary_unary(
+                '/property.PropertyService/AddPropertyMedia',
+                request_serializer=property__pb2.PropertyMediaRequest.SerializeToString,
+                response_deserializer=property__pb2.PropertyMediaResponse.FromString,
+                _registered_method=True)
+        self.UpdatePropertyProfilePhoto = channel.unary_unary(
+                '/property.PropertyService/UpdatePropertyProfilePhoto',
+                request_serializer=property__pb2.UpdatePropertyPhotoRequest.SerializeToString,
+                response_deserializer=property__pb2.PropertyResponse.FromString,
+                _registered_method=True)
+        self.UpdatePropertyCoverPhoto = channel.unary_unary(
+                '/property.PropertyService/UpdatePropertyCoverPhoto',
+                request_serializer=property__pb2.UpdatePropertyPhotoRequest.SerializeToString,
                 response_deserializer=property__pb2.PropertyResponse.FromString,
                 _registered_method=True)
 
@@ -112,7 +152,57 @@ class PropertyServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetUserProperties(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def IncrementViewCount(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CreatePropertyRating(self, request, context):
+        """Ratings (polymorphic table - here we use rated_type='property')
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetPropertyRatings(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def FollowProperty(self, request, context):
+        """Followers (polymorphic table - followee_type='property')
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetPropertyFollowers(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def AddPropertyMedia(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UpdatePropertyProfilePhoto(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UpdatePropertyCoverPhoto(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -151,9 +241,49 @@ def add_PropertyServiceServicer_to_server(servicer, server):
                     request_deserializer=property__pb2.PropertyRequest.FromString,
                     response_serializer=property__pb2.PropertyListResponse.SerializeToString,
             ),
+            'GetUserProperties': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetUserProperties,
+                    request_deserializer=property__pb2.PropertyRequest.FromString,
+                    response_serializer=property__pb2.PropertyListResponse.SerializeToString,
+            ),
             'IncrementViewCount': grpc.unary_unary_rpc_method_handler(
                     servicer.IncrementViewCount,
                     request_deserializer=property__pb2.PropertyRequest.FromString,
+                    response_serializer=property__pb2.PropertyResponse.SerializeToString,
+            ),
+            'CreatePropertyRating': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreatePropertyRating,
+                    request_deserializer=property__pb2.PropertyRatingCreateRequest.FromString,
+                    response_serializer=property__pb2.PropertyRatingResponse.SerializeToString,
+            ),
+            'GetPropertyRatings': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetPropertyRatings,
+                    request_deserializer=property__pb2.PropertyRequest.FromString,
+                    response_serializer=property__pb2.PropertyRatingsResponse.SerializeToString,
+            ),
+            'FollowProperty': grpc.unary_unary_rpc_method_handler(
+                    servicer.FollowProperty,
+                    request_deserializer=property__pb2.PropertyFollowRequest.FromString,
+                    response_serializer=property__pb2.PropertyFollowResponse.SerializeToString,
+            ),
+            'GetPropertyFollowers': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetPropertyFollowers,
+                    request_deserializer=property__pb2.PropertyRequest.FromString,
+                    response_serializer=property__pb2.PropertyFollowersResponse.SerializeToString,
+            ),
+            'AddPropertyMedia': grpc.unary_unary_rpc_method_handler(
+                    servicer.AddPropertyMedia,
+                    request_deserializer=property__pb2.PropertyMediaRequest.FromString,
+                    response_serializer=property__pb2.PropertyMediaResponse.SerializeToString,
+            ),
+            'UpdatePropertyProfilePhoto': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdatePropertyProfilePhoto,
+                    request_deserializer=property__pb2.UpdatePropertyPhotoRequest.FromString,
+                    response_serializer=property__pb2.PropertyResponse.SerializeToString,
+            ),
+            'UpdatePropertyCoverPhoto': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdatePropertyCoverPhoto,
+                    request_deserializer=property__pb2.UpdatePropertyPhotoRequest.FromString,
                     response_serializer=property__pb2.PropertyResponse.SerializeToString,
             ),
     }
@@ -331,6 +461,33 @@ class PropertyService(object):
             _registered_method=True)
 
     @staticmethod
+    def GetUserProperties(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/property.PropertyService/GetUserProperties',
+            property__pb2.PropertyRequest.SerializeToString,
+            property__pb2.PropertyListResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
     def IncrementViewCount(request,
             target,
             options=(),
@@ -346,6 +503,195 @@ class PropertyService(object):
             target,
             '/property.PropertyService/IncrementViewCount',
             property__pb2.PropertyRequest.SerializeToString,
+            property__pb2.PropertyResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def CreatePropertyRating(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/property.PropertyService/CreatePropertyRating',
+            property__pb2.PropertyRatingCreateRequest.SerializeToString,
+            property__pb2.PropertyRatingResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetPropertyRatings(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/property.PropertyService/GetPropertyRatings',
+            property__pb2.PropertyRequest.SerializeToString,
+            property__pb2.PropertyRatingsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def FollowProperty(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/property.PropertyService/FollowProperty',
+            property__pb2.PropertyFollowRequest.SerializeToString,
+            property__pb2.PropertyFollowResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetPropertyFollowers(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/property.PropertyService/GetPropertyFollowers',
+            property__pb2.PropertyRequest.SerializeToString,
+            property__pb2.PropertyFollowersResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def AddPropertyMedia(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/property.PropertyService/AddPropertyMedia',
+            property__pb2.PropertyMediaRequest.SerializeToString,
+            property__pb2.PropertyMediaResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UpdatePropertyProfilePhoto(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/property.PropertyService/UpdatePropertyProfilePhoto',
+            property__pb2.UpdatePropertyPhotoRequest.SerializeToString,
+            property__pb2.PropertyResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UpdatePropertyCoverPhoto(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/property.PropertyService/UpdatePropertyCoverPhoto',
+            property__pb2.UpdatePropertyPhotoRequest.SerializeToString,
             property__pb2.PropertyResponse.FromString,
             options,
             channel_credentials,
