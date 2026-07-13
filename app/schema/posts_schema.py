@@ -190,9 +190,7 @@ class Post:
             likeCount=data['likeCount'],
             commentCount=data['commentCount'],
             userProfilePhoto=user_profile_photo,
-            userProfilePhotoSignedUrl=generate_presigned_get_url_from_url(user_profile_photo) if user_profile_photo else None,
-            latitude=data.get('latitude'),
-            longitude=data.get('longitude')
+            userProfilePhotoSignedUrl=generate_presigned_get_url_from_url(user_profile_photo) if user_profile_photo else None
         )
 
 @strawberry.type
