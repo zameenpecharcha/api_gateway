@@ -1,9 +1,15 @@
+import os
+import re
+from dotenv import load_dotenv
+
+# Must be called before service-module imports that read os.getenv at module level
+load_dotenv()
+
 import strawberry
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from dotenv import load_dotenv
 from app.schema.auth_schema import Query as AuthQuery, Mutation as AuthMutation
 from app.schema.user_schema import Query as UserQuery, Mutation as UserMutation
 from app.schema.posts_schema import Query as PostsQuery, Mutation as PostsMutation
@@ -16,8 +22,6 @@ from app.api.uploads_api import router as uploads_router
 
 import logging
 import os
-
-load_dotenv()
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
@@ -35,17 +39,9 @@ schema = strawberry.Schema(query=Query, mutation=Mutation)
 # Initialize app
 app = FastAPI(title="ZPC API Gateway", version="1.0.0")
 
-# CORS — read from env, fallback to localhost dev
+# CORS origins — load_dotenv() already called above so env vars are available
 _origins_env = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
-allowed_origins = [o.strip() for o in _origins_env.split() if o.strip()]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+allowed_origins = [o.strip() for o in re.split(r"[\s,]+", _origins_env) if o.strip()]
 
 # Mount GraphQL route
 graphql_app = GraphQLRouter(
@@ -79,6 +75,17 @@ def root():
     }
 
 app = AuthMiddleware(app)
+
+# CORSMiddleware must be the OUTERMOST layer so it:
+#   1. handles OPTIONS preflight before AuthMiddleware runs
+#   2. injects Access-Control-* headers on ALL responses (including 401/500 from AuthMiddleware)
+app = CORSMiddleware(
+    app,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Run app
 if __name__ == "__main__":

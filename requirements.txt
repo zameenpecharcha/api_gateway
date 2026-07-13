@@ -1,6 +1,7 @@
 fastapi
 strawberry-graphql
-uvicorn
+uvicorn[standard]
+websockets
 python-dotenv
 grpcio
 protobuf

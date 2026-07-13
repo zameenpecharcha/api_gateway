@@ -16,6 +16,7 @@ __pycache__/
 *.old
 *.zip
 *.tar
+*.venv
 *.tar.gz
 *.egg-info/
 node_modules/

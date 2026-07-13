@@ -1,11 +1,10 @@
 import json
-import os
 import re
 import grpc
 
 from starlette.types import ASGIApp, Receive, Scope, Send
 from fastapi import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import JSONResponse
 from app.clients.auth.auth_client import auth_service_client
 from app.utils.log_utils import log_msg
 
@@ -22,17 +21,6 @@ PUBLIC_GRAPHQL_OPS = {
     "olaautocomplete","createdmroom", "creategrouproom", "requestchatupload", "chatdownloadurl",  # Added for location search
 }
 
-# CORS origins — same source as run_gateway.py
-_origins_env = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
-_ALLOWED_ORIGINS = {o.strip() for o in _origins_env.split() if o.strip()}
-
-CORS_HEADERS = {
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept",
-    "Access-Control-Allow-Credentials": "true",
-    "Access-Control-Max-Age": "86400",
-}
-
 
 class AuthMiddleware:
     def __init__(self, app: ASGIApp):
@@ -43,25 +31,7 @@ class AuthMiddleware:
             await self.app(scope, receive, send)
             return
 
-        # Handle CORS preflight (OPTIONS) here before reading the body,
-        # so the browser never sees a 401 on preflight.
-        if scope["type"] == "http":
-            headers = dict(scope.get("headers", []))
-            method = scope.get("method", "")
-            origin = headers.get(b"origin", b"").decode("utf-8", errors="ignore")
-
-            if method == "OPTIONS":
-                cors_headers = dict(CORS_HEADERS)
-                if origin in _ALLOWED_ORIGINS or not _ALLOWED_ORIGINS:
-                    cors_headers["Access-Control-Allow-Origin"] = origin or "*"
-                else:
-                    cors_headers["Access-Control-Allow-Origin"] = next(iter(_ALLOWED_ORIGINS), "*")
-                res = Response(status_code=204, headers=cors_headers)
-                await res(scope, receive, send)
-                return
-
         # Read full body to inspect GraphQL operation
-        # (origin already extracted above for preflight handling)
         body = b""
         more_body = True
         while more_body:
@@ -110,25 +80,19 @@ class AuthMiddleware:
 
         except ValueError as e:
             log_msg("warn", f"Authentication failed: {str(e)}")
-            res = JSONResponse(status_code=401, content={"detail": str(e)},
-                               headers={"Access-Control-Allow-Origin": origin or "*",
-                                        "Access-Control-Allow-Credentials": "true"})
+            res = JSONResponse(status_code=401, content={"detail": str(e)})
             await res(scope, receive_with_body, send)
 
         except grpc.RpcError as e:
             log_msg("error", f"gRPC error: {str(e)}")
             status = 401 if e.code() == grpc.StatusCode.UNAUTHENTICATED else 403
             detail = e.details() or "Authorization failed"
-            res = JSONResponse(status_code=status, content={"detail": detail},
-                               headers={"Access-Control-Allow-Origin": origin or "*",
-                                        "Access-Control-Allow-Credentials": "true"})
+            res = JSONResponse(status_code=status, content={"detail": detail})
             await res(scope, receive_with_body, send)
 
         except Exception as e:
             log_msg("error", f"AuthMiddleware error: {str(e)}")
-            res = JSONResponse(status_code=500, content={"detail": str(e)},
-                               headers={"Access-Control-Allow-Origin": origin or "*",
-                                        "Access-Control-Allow-Credentials": "true"})
+            res = JSONResponse(status_code=500, content={"detail": str(e)})
             await res(scope, receive_with_body, send)
 
     def _should_skip_auth(self, request: Request, body: bytes) -> bool:
