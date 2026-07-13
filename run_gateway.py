@@ -13,12 +13,15 @@ from fastapi.staticfiles import StaticFiles
 from app.schema.auth_schema import Query as AuthQuery, Mutation as AuthMutation
 from app.schema.user_schema import Query as UserQuery, Mutation as UserMutation
 from app.schema.posts_schema import Query as PostsQuery, Mutation as PostsMutation
+from app.schema.property_schema import Query as PropertyQuery, Mutation as PropertyMutation
 from app.schema.chat_schema import Query as ChatQuery, Mutation as ChatMutation
 from app.middleware.auth_middleware import AuthMiddleware
 from app.api.chat_api import chat_router
 from strawberry.fastapi import GraphQLRouter
+from app.api.uploads_api import router as uploads_router
 
 import logging
+import os
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
@@ -26,10 +29,10 @@ logger = logging.getLogger(__name__)
 
 # Define GraphQL schema
 @strawberry.type
-class Query(AuthQuery, UserQuery, PostsQuery, ChatQuery): pass
+class Query(AuthQuery, UserQuery, PostsQuery, PropertyQuery): pass
 
 @strawberry.type
-class Mutation(AuthMutation, UserMutation, PostsMutation, ChatMutation): pass
+class Mutation(AuthMutation, UserMutation, PostsMutation, PropertyMutation): pass
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)
 
@@ -48,6 +51,7 @@ graphql_app = GraphQLRouter(
 )
 app.include_router(graphql_app, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
+app.include_router(uploads_router, prefix="/api/v1")
 
 # Serve static test UI at /chat
 app.mount("/static", StaticFiles(directory="static"), name="static")
