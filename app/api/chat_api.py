@@ -58,12 +58,16 @@ def _ws_auth_header(websocket: WebSocket) -> str | None:
 
 def _build_client_msg(room_id: str, user_id: str, data: dict) -> chat_pb2.ClientMessage:
     """Convert a browser JSON payload to a ClientMessage proto."""
+    sent_at = data.get("sentAt")
+    if sent_at is None:
+        sent_at = int(time.time() * 1000)
+
     return chat_pb2.ClientMessage(
         room_id=room_id,
         user_id=user_id,
         message_id=data.get("messageId") or str(uuid.uuid4()),
         text=data.get("text", ""),
-        sent_at_unix_ms=data.get("sentAt") or int(time.time() * 1000),
+        sent_at_unix_ms=sent_at,
         type=data.get("type", 0),
         media_key=data.get("mediaKey", ""),
         media_name=data.get("mediaName", ""),
@@ -91,14 +95,14 @@ def _server_msg_to_dict(msg) -> dict:
         "mediaMimeType":      msg.media_mime_type,
         "mediaUrl":           msg.media_url,
         # new fields
-        "eventType":          msg.event_type,
         "replyToMessageId":   msg.reply_to_message_id,
         "reactionEmoji":      msg.reaction_emoji,
-        "isDeleted":          msg.is_deleted,
-        "editedAt":           msg.edited_at_unix_ms,
-        "status":             msg.status,
-        "isOnline":           msg.is_online,
-        "lastSeenAt":         msg.last_seen_unix_ms,
+        "isDeleted":          getattr(msg, "is_deleted", False),
+        "editedAt":           getattr(msg, "edited_at_unix_ms", 0),
+        "eventType":          msg.event_type,
+        "status":             int(getattr(msg, "status", 0) or 0),
+        "isOnline":           getattr(msg, "is_online", False),
+        "lastSeenAt":         getattr(msg, "last_seen_unix_ms", 0),
     }
 
 

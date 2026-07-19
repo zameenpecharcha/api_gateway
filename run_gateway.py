@@ -29,10 +29,10 @@ logger = logging.getLogger(__name__)
 
 # Define GraphQL schema
 @strawberry.type
-class Query(AuthQuery, UserQuery, PostsQuery, PropertyQuery): pass
+class Query(AuthQuery, UserQuery, PostsQuery, PropertyQuery, ChatQuery): pass
 
 @strawberry.type
-class Mutation(AuthMutation, UserMutation, PostsMutation, PropertyMutation): pass
+class Mutation(AuthMutation, UserMutation, PostsMutation, PropertyMutation, ChatMutation): pass
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)
 
