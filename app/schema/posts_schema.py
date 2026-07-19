@@ -71,30 +71,15 @@ class PostMedia:
     mediaSize: Optional[int]
     caption: Optional[str]
     uploadedAt: datetime
-    signedUrl: Optional[str] = None
 
     @strawberry.field
     def signedUrl(self) -> Optional[str]:
         try:
-            from app.utils.s3_utils import generate_presigned_get_url_from_url
-            import logging
-            logger = logging.getLogger(__name__)
-            
-            logger.debug(f"PostMedia.signedUrl called for mediaUrl: {self.mediaUrl}")
-            
             if not self.mediaUrl:
-                logger.debug("No mediaUrl provided, returning None")
                 return None
-                
             url = generate_presigned_get_url_from_url(self.mediaUrl)
-            logger.debug(f"Generated presigned URL: {url}")
-            
-            result = url or self.mediaUrl
-            logger.debug(f"Returning URL: {result}")
-            return result
+            return url or self.mediaUrl
         except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
             logger.error(f"Error in PostMedia.signedUrl: {str(e)}")
             return self.mediaUrl
 
@@ -121,8 +106,8 @@ class Post:
     visibility: str
     propertyType: str
     location: str
-    latitude: typing.Optional[float] = None
-    longitude: typing.Optional[float] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     price: float
     status: str
     createdAt: datetime
@@ -130,13 +115,14 @@ class Post:
     likeCount: int
     commentCount: int
     userProfilePhoto: Optional[str] = None
-    userProfilePhotoSignedUrl: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
 
     @strawberry.field
     def userProfilePhotoSignedUrl(self, info: Info) -> Optional[str]:
         try:
+            if self.userProfilePhoto:
+                url = generate_presigned_get_url_from_url(self.userProfilePhoto)
+                if url:
+                    return url
             token = get_token(info)
             user = user_service_client.get_user(self.userId, token=token)
             candidate = getattr(user, 'profile_photo', None)
@@ -145,7 +131,6 @@ class Post:
                 candidate = getattr(media, 'media_url', None)
             if not candidate:
                 return None
-            from app.utils.s3_utils import generate_presigned_get_url_from_url
             url = generate_presigned_get_url_from_url(candidate)
             return url or candidate
         except Exception:
@@ -164,10 +149,8 @@ class Post:
                 mediaSize=m.get('mediaSize'),
                 caption=m.get('caption'),
                 uploadedAt=m['uploadedAt'],
-                signedUrl=generate_presigned_get_url_from_url(m['mediaUrl']) if m.get('mediaUrl') else None
             ) for m in data.get('media', [])
         ]
-        user_profile_photo = data.get('userProfilePhoto')
         return cls(
             id=data['id'],
             userId=data['userId'],
@@ -189,8 +172,7 @@ class Post:
             media=media_list,
             likeCount=data['likeCount'],
             commentCount=data['commentCount'],
-            userProfilePhoto=user_profile_photo,
-            userProfilePhotoSignedUrl=generate_presigned_get_url_from_url(user_profile_photo) if user_profile_photo else None
+            userProfilePhoto=data.get('userProfilePhoto'),
         )
 
 @strawberry.type
