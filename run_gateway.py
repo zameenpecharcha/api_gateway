@@ -53,12 +53,14 @@ app.include_router(graphql_app, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
 app.include_router(uploads_router, prefix="/api/v1")
 
-# Serve static test UI at /chat
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Serve static test UI at /chat (optional — folder may be absent in Docker)
+_static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.isdir(_static_dir):
+    app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
-@app.get("/chat")
-def chat_ui():
-    return FileResponse("static/chat.html")
+    @app.get("/chat")
+    def chat_ui():
+        return FileResponse(os.path.join(_static_dir, "chat.html"))
 
 # Health check
 @app.get("/health")

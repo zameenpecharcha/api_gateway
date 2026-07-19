@@ -65,6 +65,11 @@ class UserServiceClient(GRPCBaseClient):
         )
         return self._call(self.stub.UpdateFollowStatus, request, token=token)
 
+    def get_media(self, media_id: int, token=None):
+        # Proto reuses UserRequest.id as media_id
+        request = user_pb2.UserRequest(id=media_id)
+        return self._call(self.stub.GetMedia, request, token=token)
+
     def update_profile_photo(
         self,
         user_id: int,
