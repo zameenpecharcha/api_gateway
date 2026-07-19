@@ -408,6 +408,8 @@ class Query:
         except Exception as e:
             log_msg("error", f"Error fetching media: {str(e)}")
             return None
+
+    @strawberry.field
     def users(self, info: Info, search: typing.Optional[str] = "", page: int = 1, limit: int = 50) -> typing.List[User]:
         try:
             token = get_token(info)

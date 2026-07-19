@@ -8,6 +8,25 @@ from app.clients.chat.chat_client import chat_service_client
 from app.utils.log_utils import log_msg
 
 
+def _normalize_room_id(room_id: str) -> str:
+    if not room_id:
+        return room_id
+    if room_id.startswith("dm-"):
+        parts = room_id.split("-")
+        if len(parts) >= 3 and parts[1] and parts[2]:
+            user_a = parts[1]
+            user_b = "-".join(parts[2:])
+            if user_a and user_b:
+                ordered = sorted([user_a, user_b])
+                return f"dm:{ordered[0]}:{ordered[1]}"
+    if room_id.startswith("dm:"):
+        parts = room_id.split(":")
+        if len(parts) >= 3 and parts[1] and parts[2]:
+            ordered = sorted([parts[1], parts[2]])
+            return f"dm:{ordered[0]}:{ordered[1]}"
+    return room_id
+
+
 # GraphQL Int is 32-bit; chat timestamps are Unix ms and exceed that range.
 BigInt = strawberry.scalar(
     NewType("BigInt", int),
@@ -114,13 +133,15 @@ class Query:
     @strawberry.field
     def chat_download_url(
         self,
+        info: Info,
         user_id: str,
         media_key: str,
     ) -> ChatDownloadUrlResponse:
         """Return a short-lived presigned GET URL to download a chat media file."""
         try:
             log_msg("info", f"GetDownloadUrl user={user_id} key={media_key}")
-            resp = chat_service_client.get_download_url(user_id, media_key)
+            token = _authorization_from_info(info)
+            resp = chat_service_client.get_download_url(user_id, media_key, token=token)
             return ChatDownloadUrlResponse(
                 url=resp.url,
                 expires_at_unix_ms=resp.expires_at_unix_ms,
@@ -143,13 +164,15 @@ class Query:
         Pass before_unix_ms for cursor-based pagination to load older messages.
         """
         try:
-            log_msg("info", f"GetMessages room={room_id} user={user_id} limit={limit}")
+            limit_value = 50 if limit is None else limit
+            before_value = 0 if before_unix_ms is None else before_unix_ms
+            log_msg("info", f"GetMessages room={room_id} user={user_id} limit={limit_value}")
             token = _authorization_from_info(info)
             resp = chat_service_client.get_messages(
                 room_id,
                 user_id,
-                limit,
-                before_unix_ms or 0,
+                limit_value,
+                before_value,
                 token=token,
             )
 
@@ -157,16 +180,29 @@ class Query:
             if not resp.messages:
                 alternate = _alternate_dm_room_id(room_id)
                 if alternate and alternate != room_id:
-                    log_msg("info", f"GetMessages fallback room={alternate} user={user_id} limit={limit}")
+                    log_msg("info", f"GetMessages fallback room={alternate} user={user_id} limit={limit_value}")
                     alt_resp = chat_service_client.get_messages(
                         alternate,
                         user_id,
-                        limit,
-                        before_unix_ms or 0,
+                        limit_value,
+                        before_value,
                         token=token,
                     )
                     if alt_resp.messages:
                         resp = alt_resp
+
+            if not resp.messages and room_id.startswith("dm-"):
+                normalized = _normalize_room_id(room_id)
+                if normalized != room_id:
+                    normalized_resp = chat_service_client.get_messages(
+                        normalized,
+                        user_id,
+                        limit_value,
+                        before_value,
+                        token=token,
+                    )
+                    if normalized_resp.messages:
+                        resp = normalized_resp
             messages = [
                 ChatMessage(
                     room_id=m.room_id,
@@ -224,6 +260,7 @@ class Mutation:
     @strawberry.mutation
     def create_dm_room(
         self,
+        info: Info,
         created_by: str,
         user_a: str,
         user_b: str,
@@ -234,8 +271,9 @@ class Mutation:
         returns the same room.
         """
         try:
+            token = _authorization_from_info(info)
             log_msg("info", f"CreateDMRoom by={created_by} members={user_a},{user_b}")
-            resp = chat_service_client.create_dm_room(user_a, user_b, created_by)
+            resp = chat_service_client.create_dm_room(user_a, user_b, created_by, token=token)
             return ChatRoomResponse(room_id=resp.room_id, name=resp.name)
         except grpc.RpcError as e:
             log_msg("error", f"CreateDMRoom error: {str(e)}")
@@ -244,14 +282,16 @@ class Mutation:
     @strawberry.mutation
     def create_group_room(
         self,
+        info: Info,
         created_by: str,
         name: str,
         member_ids: typing.List[str],
     ) -> ChatRoomResponse:
         """Create a new group chat room. Requires at least 2 member_ids."""
         try:
+            token = _authorization_from_info(info)
             log_msg("info", f"CreateGroupRoom name={name} by={created_by}")
-            resp = chat_service_client.create_group_room(name, created_by, member_ids)
+            resp = chat_service_client.create_group_room(name, created_by, member_ids, token=token)
             return ChatRoomResponse(room_id=resp.room_id, name=resp.name)
         except grpc.RpcError as e:
             log_msg("error", f"CreateGroupRoom error: {str(e)}")
@@ -260,6 +300,7 @@ class Mutation:
     @strawberry.mutation
     def request_chat_upload(
         self,
+        info: Info,
         user_id: str,
         room_id: str,
         file_name: str,
@@ -271,9 +312,10 @@ class Mutation:
         Pass the returned media_key in the WebSocket message to share the file.
         """
         try:
+            token = _authorization_from_info(info)
             log_msg("info", f"RequestUpload user={user_id} room={room_id} file={file_name}")
             resp = chat_service_client.request_upload(
-                user_id, room_id, file_name, mime_type, file_size_bytes
+                user_id, room_id, file_name, mime_type, file_size_bytes, token=token
             )
             return ChatUploadResponse(
                 media_key=resp.media_key,
