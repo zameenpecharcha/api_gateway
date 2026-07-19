@@ -66,6 +66,11 @@ class ChatServiceStub:
                 request_serializer=chat__pb2.GetPresenceRequest.SerializeToString,
                 response_deserializer=chat__pb2.GetPresenceResponse.FromString,
                 _registered_method=True)
+        self.GetUserRooms = channel.unary_unary(
+                '/chat.v1.ChatService/GetUserRooms',
+                request_serializer=chat__pb2.GetUserRoomsRequest.SerializeToString,
+                response_deserializer=chat__pb2.GetUserRoomsResponse.FromString,
+                _registered_method=True)
 
 
 class ChatServiceServicer:
@@ -115,6 +120,13 @@ class ChatServiceServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetUserRooms(self, request, context):
+        """Get all active rooms for a user with last-message metadata
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_ChatServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -147,6 +159,11 @@ def add_ChatServiceServicer_to_server(servicer, server):
                     servicer.GetPresence,
                     request_deserializer=chat__pb2.GetPresenceRequest.FromString,
                     response_serializer=chat__pb2.GetPresenceResponse.SerializeToString,
+            ),
+            'GetUserRooms': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetUserRooms,
+                    request_deserializer=chat__pb2.GetUserRoomsRequest.FromString,
+                    response_serializer=chat__pb2.GetUserRoomsResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -313,6 +330,33 @@ class ChatService:
             '/chat.v1.ChatService/GetPresence',
             chat__pb2.GetPresenceRequest.SerializeToString,
             chat__pb2.GetPresenceResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetUserRooms(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.v1.ChatService/GetUserRooms',
+            chat__pb2.GetUserRoomsRequest.SerializeToString,
+            chat__pb2.GetUserRoomsResponse.FromString,
             options,
             channel_credentials,
             insecure,

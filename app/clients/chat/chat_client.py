@@ -61,6 +61,10 @@ class ChatServiceClient(GRPCBaseClient):
         request = chat_pb2.GetPresenceRequest(user_ids=user_ids)
         return self._call("GetPresence", request, token=token, require_token=True)
 
+    def get_user_rooms(self, user_id: str, token: Optional[str] = None):
+        request = chat_pb2.GetUserRoomsRequest(user_id=user_id)
+        return self._call("GetUserRooms", request, token=token, require_token=True)
+
     # ── Media upload / download ───────────────────────────────────────────────
 
     def request_upload(self, user_id: str, room_id: str, file_name: str,

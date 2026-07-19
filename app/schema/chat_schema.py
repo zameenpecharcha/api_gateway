@@ -125,6 +125,49 @@ class PresenceInfo:
     last_seen_unix_ms: BigInt
 
 
+@strawberry.type
+class RoomParticipant:
+    user_id: str
+    first_name: str
+    last_name: str
+    avatar_url: str
+
+
+@strawberry.type
+class UserRoom:
+    room_id: str
+    room_type: int           # 0=DM 1=GROUP
+    name: str
+    last_message: str
+    last_message_at: BigInt  # Unix ms
+    has_unread: bool
+    member_ids: typing.List[str]
+
+    @strawberry.field
+    def participants(self, info: Info) -> typing.List[RoomParticipant]:
+        """Resolve participant profile details (name + avatar) from user_service."""
+        from app.clients.user.user_client import user_service_client
+        token = _authorization_from_info(info)
+        result: typing.List[RoomParticipant] = []
+        for uid in self.member_ids:
+            try:
+                u = user_service_client.get_user(uid, token=token)
+                result.append(RoomParticipant(
+                    user_id=str(u.id),
+                    first_name=u.first_name,
+                    last_name=u.last_name,
+                    avatar_url=getattr(u, "profile_photo_signed_url", "") or "",
+                ))
+            except Exception:
+                result.append(RoomParticipant(
+                    user_id=uid,
+                    first_name="",
+                    last_name="",
+                    avatar_url="",
+                ))
+        return result
+
+
 # ── Query ──────────────────────────────────────────────────────────────────────
 
 @strawberry.type
@@ -251,6 +294,32 @@ class Query:
             log_msg("error", f"GetPresence error: {str(e)}")
             raise
 
+    @strawberry.field
+    def get_user_rooms(
+        self,
+        info: Info,
+        user_id: str,
+    ) -> typing.List[UserRoom]:
+        """Return all active rooms for a user with last-message metadata and participant profiles."""
+        try:
+            log_msg("info", f"GetUserRooms user={user_id}")
+            token = _authorization_from_info(info)
+            resp = chat_service_client.get_user_rooms(user_id, token=token)
+            return [
+                UserRoom(
+                    room_id=r.room_id,
+                    room_type=int(r.room_type),
+                    name=r.name,
+                    last_message=r.last_message,
+                    last_message_at=r.last_message_at,
+                    has_unread=r.has_unread,
+                    member_ids=list(r.member_ids),
+                )
+                for r in resp.rooms
+            ]
+        except grpc.RpcError as e:
+            log_msg("error", f"GetUserRooms error: {str(e)}")
+            return []
 
 # ── Mutation ───────────────────────────────────────────────────────────────────
 

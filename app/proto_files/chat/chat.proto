@@ -169,6 +169,26 @@ message GetPresenceResponse {
   repeated PresenceInfo users = 1;
 }
 
+// ── User rooms ────────────────────────────────────────────────────────────────
+
+message GetUserRoomsRequest {
+  string user_id = 1;
+}
+
+message UserRoom {
+  string          room_id          = 1;
+  RoomType        room_type        = 2;
+  string          name             = 3;
+  string          last_message     = 4;
+  int64           last_message_at  = 5;
+  bool            has_unread       = 6;
+  repeated string member_ids       = 7;
+}
+
+message GetUserRoomsResponse {
+  repeated UserRoom rooms = 1;
+}
+
 // ── Service ───────────────────────────────────────────────────────────────────
 
 service ChatService {
@@ -189,6 +209,7 @@ service ChatService {
 
   // Batch presence lookup (online status + last seen)
   rpc GetPresence(GetPresenceRequest) returns (GetPresenceResponse);
+
+  // Get all active rooms for a user with last-message metadata
+  rpc GetUserRooms(GetUserRoomsRequest) returns (GetUserRoomsResponse);
 }
-
-
