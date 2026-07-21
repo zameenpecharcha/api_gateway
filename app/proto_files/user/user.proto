@@ -7,8 +7,8 @@ service UserService {
   rpc ListUsers (ListUsersRequest) returns (ListUsersResponse);
   rpc CreateUser (CreateUserRequest) returns (UserResponse);
   rpc UpdateUserLocation (UpdateUserLocationRequest) returns (UserResponse);
-  rpc CreateRating (CreateRatingRequest) returns (RatingResponse);
-  rpc GetUserRatings (UserRequest) returns (RatingsResponse);
+  rpc CreateUserRating (CreateUserRatingRequest) returns (UserRatingResponse);
+  rpc GetUserRatings (UserRequest) returns (UserRatingsResponse);
   rpc FollowUser (FollowUserRequest) returns (FollowUserResponse);
   rpc UpdateFollowStatus (FollowUserRequest) returns (FollowUserResponse);
   rpc GetPendingFollowRequests (UserRequest) returns (UserFollowersResponse);
@@ -19,6 +19,10 @@ service UserService {
   rpc GetMedia (UserRequest) returns (MediaResponse);
   rpc UpdateProfilePhoto (UpdateUserPhotoRequest) returns (UserResponse);
   rpc UpdateCoverPhoto (UpdateUserPhotoRequest) returns (UserResponse);
+  rpc SuggestedUsers (SuggestedUsersRequest) returns (ListUsersResponse);
+  rpc CreateNotification (CreateNotificationRequest) returns (NotificationResponse);
+  rpc ListNotifications (ListNotificationsRequest) returns (ListNotificationsResponse);
+  rpc MarkNotificationRead (MarkNotificationReadRequest) returns (NotificationResponse);
 }
 
 message UserRequest {
@@ -70,31 +74,28 @@ message UserResponse {
   int64 profile_photo_id = 18;
 }
 
-message CreateRatingRequest {
+// Aligned with user_service field numbers so review/rating_type deserialize correctly
+message CreateUserRatingRequest {
   int64 rated_user_id = 1;
   int64 rated_by_user_id = 2;
   int32 rating_value = 3;
-  string title = 4;
-  string review = 5;
-  string rating_type = 6;
-  bool is_anonymous = 7;
+  string review = 4;
+  string rating_type = 5;
 }
 
-message RatingResponse {
+message UserRatingResponse {
   int64 id = 1;
   int64 rated_user_id = 2;
   int64 rated_by_user_id = 3;
   int32 rating_value = 4;
-  string title = 5;
-  string review = 6;
-  string rating_type = 7;
-  bool is_anonymous = 8;
-  string created_at = 9;
-  string updated_at = 10;
+  string review = 5;
+  string rating_type = 6;
+  string created_at = 7;
+  string updated_at = 8;
 }
 
-message RatingsResponse {
-  repeated RatingResponse ratings = 1;
+message UserRatingsResponse {
+  repeated UserRatingResponse ratings = 1;
 }
 
 message FollowUserRequest {
@@ -157,4 +158,44 @@ message UpdateUserLocationRequest {
   int64 user_id = 1;
   float latitude = 2;
   float longitude = 3;
+}
+
+message SuggestedUsersRequest {
+  int64 user_id = 1;
+  int32 limit = 2;
+}
+
+message CreateNotificationRequest {
+  int64 user_id = 1;
+  string title = 2;
+  string message = 3;
+  string type = 4;
+  string metadata = 5;
+}
+
+message NotificationResponse {
+  int64 id = 1;
+  int64 user_id = 2;
+  string title = 3;
+  string message = 4;
+  string type = 5;
+  bool read = 6;
+  string created_at = 7;
+  string metadata = 8;
+}
+
+message ListNotificationsRequest {
+  int64 user_id = 1;
+  int32 page = 2;
+  int32 limit = 3;
+}
+
+message ListNotificationsResponse {
+  repeated NotificationResponse notifications = 1;
+  int32 total = 2;
+}
+
+message MarkNotificationReadRequest {
+  int64 notification_id = 1;
+  int64 user_id = 2;
 }

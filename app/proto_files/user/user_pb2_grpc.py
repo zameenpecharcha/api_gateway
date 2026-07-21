@@ -3,9 +3,9 @@
 import grpc
 import warnings
 
-from . import user_pb2 as user__pb2
+from app.proto_files.user import user_pb2 as user__pb2
 
-GRPC_GENERATED_VERSION = '1.81.1'
+GRPC_GENERATED_VERSION = '1.73.1'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
@@ -18,14 +18,14 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + ' but the generated code in user_pb2_grpc.py depends on'
+        + f' but the generated code in user_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
     )
 
 
-class UserServiceStub:
+class UserServiceStub(object):
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -54,15 +54,15 @@ class UserServiceStub:
                 request_serializer=user__pb2.UpdateUserLocationRequest.SerializeToString,
                 response_deserializer=user__pb2.UserResponse.FromString,
                 _registered_method=True)
-        self.CreateRating = channel.unary_unary(
-                '/user.UserService/CreateRating',
-                request_serializer=user__pb2.CreateRatingRequest.SerializeToString,
-                response_deserializer=user__pb2.RatingResponse.FromString,
+        self.CreateUserRating = channel.unary_unary(
+                '/user.UserService/CreateUserRating',
+                request_serializer=user__pb2.CreateUserRatingRequest.SerializeToString,
+                response_deserializer=user__pb2.UserRatingResponse.FromString,
                 _registered_method=True)
         self.GetUserRatings = channel.unary_unary(
                 '/user.UserService/GetUserRatings',
                 request_serializer=user__pb2.UserRequest.SerializeToString,
-                response_deserializer=user__pb2.RatingsResponse.FromString,
+                response_deserializer=user__pb2.UserRatingsResponse.FromString,
                 _registered_method=True)
         self.FollowUser = channel.unary_unary(
                 '/user.UserService/FollowUser',
@@ -109,9 +109,29 @@ class UserServiceStub:
                 request_serializer=user__pb2.UpdateUserPhotoRequest.SerializeToString,
                 response_deserializer=user__pb2.UserResponse.FromString,
                 _registered_method=True)
+        self.SuggestedUsers = channel.unary_unary(
+                '/user.UserService/SuggestedUsers',
+                request_serializer=user__pb2.SuggestedUsersRequest.SerializeToString,
+                response_deserializer=user__pb2.ListUsersResponse.FromString,
+                _registered_method=True)
+        self.CreateNotification = channel.unary_unary(
+                '/user.UserService/CreateNotification',
+                request_serializer=user__pb2.CreateNotificationRequest.SerializeToString,
+                response_deserializer=user__pb2.NotificationResponse.FromString,
+                _registered_method=True)
+        self.ListNotifications = channel.unary_unary(
+                '/user.UserService/ListNotifications',
+                request_serializer=user__pb2.ListNotificationsRequest.SerializeToString,
+                response_deserializer=user__pb2.ListNotificationsResponse.FromString,
+                _registered_method=True)
+        self.MarkNotificationRead = channel.unary_unary(
+                '/user.UserService/MarkNotificationRead',
+                request_serializer=user__pb2.MarkNotificationReadRequest.SerializeToString,
+                response_deserializer=user__pb2.NotificationResponse.FromString,
+                _registered_method=True)
 
 
-class UserServiceServicer:
+class UserServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def GetUser(self, request, context):
@@ -138,7 +158,7 @@ class UserServiceServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def CreateRating(self, request, context):
+    def CreateUserRating(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -205,6 +225,30 @@ class UserServiceServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def SuggestedUsers(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CreateNotification(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ListNotifications(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def MarkNotificationRead(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_UserServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -228,15 +272,15 @@ def add_UserServiceServicer_to_server(servicer, server):
                     request_deserializer=user__pb2.UpdateUserLocationRequest.FromString,
                     response_serializer=user__pb2.UserResponse.SerializeToString,
             ),
-            'CreateRating': grpc.unary_unary_rpc_method_handler(
-                    servicer.CreateRating,
-                    request_deserializer=user__pb2.CreateRatingRequest.FromString,
-                    response_serializer=user__pb2.RatingResponse.SerializeToString,
+            'CreateUserRating': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateUserRating,
+                    request_deserializer=user__pb2.CreateUserRatingRequest.FromString,
+                    response_serializer=user__pb2.UserRatingResponse.SerializeToString,
             ),
             'GetUserRatings': grpc.unary_unary_rpc_method_handler(
                     servicer.GetUserRatings,
                     request_deserializer=user__pb2.UserRequest.FromString,
-                    response_serializer=user__pb2.RatingsResponse.SerializeToString,
+                    response_serializer=user__pb2.UserRatingsResponse.SerializeToString,
             ),
             'FollowUser': grpc.unary_unary_rpc_method_handler(
                     servicer.FollowUser,
@@ -283,6 +327,26 @@ def add_UserServiceServicer_to_server(servicer, server):
                     request_deserializer=user__pb2.UpdateUserPhotoRequest.FromString,
                     response_serializer=user__pb2.UserResponse.SerializeToString,
             ),
+            'SuggestedUsers': grpc.unary_unary_rpc_method_handler(
+                    servicer.SuggestedUsers,
+                    request_deserializer=user__pb2.SuggestedUsersRequest.FromString,
+                    response_serializer=user__pb2.ListUsersResponse.SerializeToString,
+            ),
+            'CreateNotification': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateNotification,
+                    request_deserializer=user__pb2.CreateNotificationRequest.FromString,
+                    response_serializer=user__pb2.NotificationResponse.SerializeToString,
+            ),
+            'ListNotifications': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListNotifications,
+                    request_deserializer=user__pb2.ListNotificationsRequest.FromString,
+                    response_serializer=user__pb2.ListNotificationsResponse.SerializeToString,
+            ),
+            'MarkNotificationRead': grpc.unary_unary_rpc_method_handler(
+                    servicer.MarkNotificationRead,
+                    request_deserializer=user__pb2.MarkNotificationReadRequest.FromString,
+                    response_serializer=user__pb2.NotificationResponse.SerializeToString,
+            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
             'user.UserService', rpc_method_handlers)
@@ -291,7 +355,7 @@ def add_UserServiceServicer_to_server(servicer, server):
 
 
  # This class is part of an EXPERIMENTAL API.
-class UserService:
+class UserService(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
@@ -403,7 +467,7 @@ class UserService:
             _registered_method=True)
 
     @staticmethod
-    def CreateRating(request,
+    def CreateUserRating(request,
             target,
             options=(),
             channel_credentials=None,
@@ -416,9 +480,9 @@ class UserService:
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/user.UserService/CreateRating',
-            user__pb2.CreateRatingRequest.SerializeToString,
-            user__pb2.RatingResponse.FromString,
+            '/user.UserService/CreateUserRating',
+            user__pb2.CreateUserRatingRequest.SerializeToString,
+            user__pb2.UserRatingResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -445,7 +509,7 @@ class UserService:
             target,
             '/user.UserService/GetUserRatings',
             user__pb2.UserRequest.SerializeToString,
-            user__pb2.RatingsResponse.FromString,
+            user__pb2.UserRatingsResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -689,6 +753,114 @@ class UserService:
             '/user.UserService/UpdateCoverPhoto',
             user__pb2.UpdateUserPhotoRequest.SerializeToString,
             user__pb2.UserResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SuggestedUsers(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/SuggestedUsers',
+            user__pb2.SuggestedUsersRequest.SerializeToString,
+            user__pb2.ListUsersResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def CreateNotification(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/CreateNotification',
+            user__pb2.CreateNotificationRequest.SerializeToString,
+            user__pb2.NotificationResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ListNotifications(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/ListNotifications',
+            user__pb2.ListNotificationsRequest.SerializeToString,
+            user__pb2.ListNotificationsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def MarkNotificationRead(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/MarkNotificationRead',
+            user__pb2.MarkNotificationReadRequest.SerializeToString,
+            user__pb2.NotificationResponse.FromString,
             options,
             channel_credentials,
             insecure,

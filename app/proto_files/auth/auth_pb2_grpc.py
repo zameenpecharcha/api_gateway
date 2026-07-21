@@ -5,7 +5,7 @@ import warnings
 
 from . import auth_pb2 as auth__pb2
 
-GRPC_GENERATED_VERSION = '1.81.1'
+GRPC_GENERATED_VERSION = '1.73.1'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
@@ -18,14 +18,14 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + ' but the generated code in auth_pb2_grpc.py depends on'
+        + f' but the generated code in auth_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
     )
 
 
-class AuthServiceStub:
+class AuthServiceStub(object):
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -71,7 +71,7 @@ class AuthServiceStub:
                 _registered_method=True)
 
 
-class AuthServiceServicer:
+class AuthServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def Login(self, request, context):
@@ -162,7 +162,7 @@ def add_AuthServiceServicer_to_server(servicer, server):
 
 
  # This class is part of an EXPERIMENTAL API.
-class AuthService:
+class AuthService(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod

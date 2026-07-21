@@ -27,6 +27,7 @@ message Post {
     int32 like_count = 19;
     int32 comment_count = 20;
     bool is_anonymous = 21;
+    bool is_liked = 24;
 }
 
 // Post Media Message
@@ -83,6 +84,7 @@ message PostCreateRequest {
     // map_location removed
     double price = 8;
     string status = 9;
+    bool is_anonymous = 11;
     repeated PostMediaUpload media = 10;
 }
 
@@ -92,9 +94,11 @@ message PostMediaUpload {
     bytes media_data = 2;
     int32 media_order = 3;
     string caption = 4;
+    // Optional fields for base64 uploads with metadata
     string base64_data = 5;
     string file_name = 6;
     string content_type = 7;
+    // File-path based upload (server-accessible path)
     string file_path = 8;
 }
 
@@ -111,6 +115,7 @@ message PostUpdateRequest {
     // map_location removed
     double price = 8;
     string status = 9;
+    bool is_anonymous = 10;
 }
 
 // Post Media Request Message
@@ -152,10 +157,6 @@ message CommentUpdateRequest {
     string status = 3;
 }
 
-message CommentRequest {
-    int64 comment_id = 1;
-}
-
 // Get Comments Request Message
 message GetCommentsRequest {
     int64 post_id = 1;
@@ -168,6 +169,7 @@ message GetPostsByUserRequest {
     int64 user_id = 1;
     int32 page = 2;
     int32 limit = 3;
+    int64 viewer_user_id = 4;
 }
 
 // Search Posts Request Message
@@ -179,6 +181,16 @@ message SearchPostsRequest {
     string status = 5;
     int32 page = 6;
     int32 limit = 7;
+    int64 viewer_user_id = 8;
+}
+
+message TrendingPostsRequest {
+    int32 limit = 1;
+    int64 viewer_user_id = 2;
+}
+
+message CommentRequest {
+    int64 comment_id = 1;
 }
 
 // Post Response Message
@@ -230,6 +242,7 @@ service PostsService {
     rpc DeletePost(PostRequest) returns (GenericResponse) {}
     rpc GetPostsByUser(GetPostsByUserRequest) returns (PostListResponse) {}
     rpc SearchPosts(SearchPostsRequest) returns (PostListResponse) {}
+    rpc TrendingPosts(TrendingPostsRequest) returns (PostListResponse) {}
 
     // Media Operations
     rpc AddPostMedia(PostMediaRequest) returns (PostResponse) {}
