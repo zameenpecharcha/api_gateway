@@ -135,10 +135,13 @@ async def chat_ws(websocket: WebSocket, room_id: str, user_id: str):
         eventType, replyToMessageId, reactionEmoji, isDeleted,
         status, isOnline, lastSeenAt
     """
+    from app.utils.log_utils import log_msg
+    log_msg("info", f"WebSocket connecting: room={room_id} user={user_id} target={CHAT_SERVICE_TARGET}")
     await websocket.accept()
 
     auth_header = _ws_auth_header(websocket)
     if not auth_header:
+        log_msg("error", f"WebSocket rejected: missing auth token for user={user_id}")
         await websocket.send_json({"error": "missing authorization token"})
         await websocket.close(code=1008)
         return
@@ -160,8 +163,9 @@ async def chat_ws(websocket: WebSocket, room_id: str, user_id: str):
                 sent_at_unix_ms=int(time.time() * 1000),
             )
         )
-    except Exception:
-        await websocket.send_json({"error": "chat authentication failed"})
+    except Exception as e:
+        log_msg("error", f"gRPC Chat connection failed to target={CHAT_SERVICE_TARGET} err={str(e)}")
+        await websocket.send_json({"error": f"chat connection failed: {str(e)}"})
         await websocket.close(code=1008)
         await channel.close()
         return
@@ -177,24 +181,29 @@ async def chat_ws(websocket: WebSocket, room_id: str, user_id: str):
 
                 await call.write(_build_client_msg(room_id, user_id, data))
         except WebSocketDisconnect:
-            pass
+            log_msg("info", f"ws_to_grpc: WebSocket disconnected for user={user_id}")
+        except Exception as e:
+            log_msg("error", f"ws_to_grpc task failed: {str(e)}")
         finally:
+            log_msg("info", f"ws_to_grpc: done_writing for user={user_id}")
             await call.done_writing()
 
     async def grpc_to_ws():
         try:
             async for msg in call:
                 await websocket.send_json(_server_msg_to_dict(msg))
-        except Exception:
-            pass
+            log_msg("info", f"grpc_to_ws: stream finished normally for user={user_id}")
+        except Exception as e:
+            log_msg("error", f"grpc_to_ws task failed: {str(e)}")
 
     sender = asyncio.create_task(ws_to_grpc())
     receiver = asyncio.create_task(grpc_to_ws())
     try:
         await asyncio.gather(sender, receiver)
+    except Exception as e:
+        log_msg("error", f"asyncio.gather failed in chat_ws: {str(e)}")
     finally:
+        log_msg("info", f"Cleaning up WebSocket connection for user={user_id}")
         sender.cancel()
         receiver.cancel()
         await channel.close()
-
-

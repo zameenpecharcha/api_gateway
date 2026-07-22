@@ -151,6 +151,7 @@ class UserRoom:
         result: typing.List[RoomParticipant] = []
         for uid in self.member_ids:
             try:
+                # Use a short timeout so a slow user_service doesn't stall room loading
                 u = user_service_client.get_user(uid, token=token)
                 result.append(RoomParticipant(
                     user_id=str(u.id),
@@ -200,7 +201,7 @@ class Query:
         room_id: str,
         user_id: str,
         limit: typing.Optional[int] = 50,
-        before_unix_ms: typing.Optional[int] = 0,
+        before_unix_ms: typing.Optional[BigInt] = 0,
     ) -> GetMessagesResponse:
         """
         Load paginated message history for a room (newest first).
