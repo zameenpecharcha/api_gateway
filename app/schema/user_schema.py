@@ -45,21 +45,27 @@ class User:
     @strawberry.field
     def profilePhotoSignedUrl(self, info: Info) -> typing.Optional[str]:
         try:
-            from app.utils.s3_utils import generate_presigned_get_url_from_url
-            token = get_token(info)
+            # Prefer value already set by list/detail builders (avoid N+1 get_media)
+            existing = getattr(self, "profile_photo_signed_url", None)
+            if existing:
+                return existing
 
             candidate: typing.Optional[str] = getattr(self, "profile_photo", None)
-            if (not candidate) and getattr(self, "profile_photo_id", 0):
-                media = user_service_client.get_media(media_id=int(self.profile_photo_id), token=token)
+            if candidate:
+                url = generate_presigned_get_url_from_url(candidate)
+                return url or candidate
+
+            if getattr(self, "profile_photo_id", 0):
+                token = get_token(info)
+                media = user_service_client.get_media(
+                    media_id=int(self.profile_photo_id), token=token
+                )
                 candidate = getattr(media, "media_url", None)
-
-            if not candidate:
-                return None
-
-            url = generate_presigned_get_url_from_url(candidate)
-            return url or candidate
+                if candidate:
+                    url = generate_presigned_get_url_from_url(candidate)
+                    return url or candidate
+            return None
         except Exception:
-            # Fallback to whatever is already present
             return getattr(self, "profile_photo", None)
 
     @strawberry.field
@@ -153,6 +159,47 @@ class OlaSuggestion:
     lat: typing.Optional[float]
     lng: typing.Optional[float]
     types: typing.List[str]
+
+@strawberry.type
+class Notification:
+    id: int
+    user_id: int
+    title: str
+    message: str
+    type: str
+    read: bool
+    created_at: str
+    metadata: typing.Optional[str] = None
+
+@strawberry.type
+class NotificationsPage:
+    notifications: typing.List[Notification]
+    total: int
+
+def _user_from_proto(u) -> User:
+    cover_photo = getattr(u, 'cover_photo', None) or None
+    return User(
+        id=u.id,
+        first_name=u.first_name,
+        last_name=u.last_name,
+        email=u.email,
+        phone=u.phone,
+        profile_photo=u.profile_photo or None,
+        cover_photo=cover_photo,
+        profile_photo_signed_url=generate_presigned_get_url_from_url(u.profile_photo) if u.profile_photo else None,
+        cover_photo_signed_url=None,
+        role=u.role or None,
+        address=u.address or None,
+        latitude=getattr(u, 'latitude', None) or None,
+        longitude=getattr(u, 'longitude', None) or None,
+        bio=getattr(u, 'bio', None) or None,
+        isactive=u.isActive,
+        email_verified=u.email_verified,
+        phone_verified=u.phone_verified,
+        created_at=u.created_at,
+        cover_photo_id=getattr(u, 'cover_photo_id', 0),
+        profile_photo_id=getattr(u, 'profile_photo_id', 0),
+    )
 
 @strawberry.type
 class Query:
@@ -441,6 +488,51 @@ class Query:
         except Exception as e:
             log_msg("error", f"Error listing users: {str(e)}")
             return []
+
+    @strawberry.field
+    def suggestedUsers(self, info: Info, userId: int, limit: int = 10) -> typing.List[User]:
+        try:
+            token = get_token(info)
+            response = user_service_client.get_suggested_users(user_id=userId, limit=limit, token=token)
+            return [_user_from_proto(u) for u in response.users]
+        except Exception as e:
+            log_msg("error", f"Error fetching suggested users: {str(e)}")
+            return []
+
+    @strawberry.field
+    def userNotifications(
+        self,
+        info: Info,
+        userId: int,
+        page: int = 1,
+        limit: int = 20,
+    ) -> NotificationsPage:
+        try:
+            token = get_token(info)
+            response = user_service_client.list_notifications(
+                user_id=userId, page=page, limit=limit, token=token
+            )
+            notifications = [
+                Notification(
+                    id=n.id,
+                    user_id=n.user_id,
+                    title=n.title,
+                    message=n.message,
+                    type=n.type,
+                    read=n.read,
+                    created_at=n.created_at,
+                    metadata=n.metadata or None,
+                )
+                for n in response.notifications
+            ]
+            return NotificationsPage(notifications=notifications, total=response.total)
+        except Exception as e:
+            log_msg("error", f"Error fetching notifications: {str(e)}")
+            raise REException(
+                "NOTIFICATIONS_FETCH_FAILED",
+                "Failed to fetch notifications",
+                str(e),
+            ).to_graphql_error()
 
 @strawberry.type
 class Mutation:
@@ -766,4 +858,73 @@ class Mutation:
             profile_photo_id=getattr(response, 'profile_photo_id', 0),
         )
 
+    @strawberry.mutation
+    async def markNotificationRead(
+        self,
+        info: Info,
+        notificationId: int,
+        userId: int,
+    ) -> Notification:
+        try:
+            token = get_token(info)
+            response = user_service_client.mark_notification_read(
+                notification_id=notificationId,
+                user_id=userId,
+                token=token,
+            )
+            return Notification(
+                id=response.id,
+                user_id=response.user_id,
+                title=response.title,
+                message=response.message,
+                type=response.type,
+                read=response.read,
+                created_at=response.created_at,
+                metadata=response.metadata or None,
+            )
+        except Exception as e:
+            log_msg("error", f"Error marking notification read: {str(e)}")
+            raise REException(
+                "MARK_NOTIFICATION_FAILED",
+                "Failed to mark notification read",
+                str(e),
+            ).to_graphql_error()
+
+    @strawberry.mutation
+    async def createNotification(
+        self,
+        info: Info,
+        userId: int,
+        title: str,
+        message: str,
+        type: str = "",
+        metadata: typing.Optional[str] = None,
+    ) -> Notification:
+        try:
+            token = get_token(info)
+            response = user_service_client.create_notification(
+                user_id=userId,
+                title=title,
+                message=message,
+                type=type,
+                metadata=metadata or "",
+                token=token,
+            )
+            return Notification(
+                id=response.id,
+                user_id=response.user_id,
+                title=response.title,
+                message=response.message,
+                type=response.type,
+                read=response.read,
+                created_at=response.created_at,
+                metadata=response.metadata or None,
+            )
+        except Exception as e:
+            log_msg("error", f"Error creating notification: {str(e)}")
+            raise REException(
+                "CREATE_NOTIFICATION_FAILED",
+                "Failed to create notification",
+                str(e),
+            ).to_graphql_error()
 

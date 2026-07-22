@@ -30,21 +30,26 @@ class PostsServiceClient(GRPCBaseClient):
 
     def search_posts(self, property_type: str = None, location: str = None,
                      min_price: float = None, max_price: float = None,
-                     status: str = None, page: int = 1, limit: int = 10,token=None):
-        try:
-            request = post_pb2.SearchPostsRequest(
-                type=property_type or "",
-                location=location or "",
-                min_price=min_price or 0.0,
-                max_price=max_price or 0.0,
-                status=status or "",
-                page=page,
-                limit=limit
-            )
-            return self._call(self.stub.SearchPosts, request,token=token)
-        except grpc.RpcError as e:
-            print(f"Error in search_posts: {str(e)}")
-            return None
+                     status: str = None, page: int = 1, limit: int = 10,
+                     viewer_user_id: int = 0, token=None):
+        request = post_pb2.SearchPostsRequest(
+            type=property_type or "",
+            location=location or "",
+            min_price=min_price or 0.0,
+            max_price=max_price or 0.0,
+            status=status or "",
+            page=page,
+            limit=limit,
+            viewer_user_id=viewer_user_id or 0,
+        )
+        return self._call(self.stub.SearchPosts, request, token=token)
+
+    def trending_posts(self, limit: int = 10, viewer_user_id: int = 0, token=None):
+        request = post_pb2.TrendingPostsRequest(
+            limit=limit,
+            viewer_user_id=viewer_user_id or 0,
+        )
+        return self._call(self.stub.TrendingPosts, request, token=token)
 
     def create_post(self, user_id: int, title: str, content: str,
                     visibility: str, property_type: str, location: str,
@@ -218,14 +223,16 @@ class PostsServiceClient(GRPCBaseClient):
                 'message': f'Error deleting post: {str(e)}'
             }
 
-    def get_posts_by_user(self, user_id: int, page: int = 1, limit: int = 10,token=None):
+    def get_posts_by_user(self, user_id: int, page: int = 1, limit: int = 10,
+                          viewer_user_id: int = 0, token=None):
         try:
             request = post_pb2.GetPostsByUserRequest(
                 user_id=user_id,
                 page=page,
-                limit=limit
+                limit=limit,
+                viewer_user_id=viewer_user_id or 0,
             )
-            response = self._call(self.stub.GetPostsByUser, request,token=token)
+            response = self._call(self.stub.GetPostsByUser, request, token=token)
             return response.posts
         except grpc.RpcError as e:
             return []

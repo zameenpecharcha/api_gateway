@@ -3,9 +3,9 @@
 import grpc
 import warnings
 
-from . import post_pb2 as post__pb2
+from app.proto_files.posts import post_pb2 as post__pb2
 
-GRPC_GENERATED_VERSION = '1.81.1'
+GRPC_GENERATED_VERSION = '1.73.1'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
@@ -18,14 +18,14 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + ' but the generated code in post_pb2_grpc.py depends on'
+        + f' but the generated code in post_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
     )
 
 
-class PostsServiceStub:
+class PostsServiceStub(object):
     """Posts Service Definition
     """
 
@@ -63,6 +63,11 @@ class PostsServiceStub:
         self.SearchPosts = channel.unary_unary(
                 '/posts.PostsService/SearchPosts',
                 request_serializer=post__pb2.SearchPostsRequest.SerializeToString,
+                response_deserializer=post__pb2.PostListResponse.FromString,
+                _registered_method=True)
+        self.TrendingPosts = channel.unary_unary(
+                '/posts.PostsService/TrendingPosts',
+                request_serializer=post__pb2.TrendingPostsRequest.SerializeToString,
                 response_deserializer=post__pb2.PostListResponse.FromString,
                 _registered_method=True)
         self.AddPostMedia = channel.unary_unary(
@@ -117,7 +122,7 @@ class PostsServiceStub:
                 _registered_method=True)
 
 
-class PostsServiceServicer:
+class PostsServiceServicer(object):
     """Posts Service Definition
     """
 
@@ -153,6 +158,12 @@ class PostsServiceServicer:
         raise NotImplementedError('Method not implemented!')
 
     def SearchPosts(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def TrendingPosts(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -254,6 +265,11 @@ def add_PostsServiceServicer_to_server(servicer, server):
                     request_deserializer=post__pb2.SearchPostsRequest.FromString,
                     response_serializer=post__pb2.PostListResponse.SerializeToString,
             ),
+            'TrendingPosts': grpc.unary_unary_rpc_method_handler(
+                    servicer.TrendingPosts,
+                    request_deserializer=post__pb2.TrendingPostsRequest.FromString,
+                    response_serializer=post__pb2.PostListResponse.SerializeToString,
+            ),
             'AddPostMedia': grpc.unary_unary_rpc_method_handler(
                     servicer.AddPostMedia,
                     request_deserializer=post__pb2.PostMediaRequest.FromString,
@@ -312,7 +328,7 @@ def add_PostsServiceServicer_to_server(servicer, server):
 
 
  # This class is part of an EXPERIMENTAL API.
-class PostsService:
+class PostsService(object):
     """Posts Service Definition
     """
 
@@ -467,6 +483,33 @@ class PostsService:
             target,
             '/posts.PostsService/SearchPosts',
             post__pb2.SearchPostsRequest.SerializeToString,
+            post__pb2.PostListResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def TrendingPosts(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/posts.PostsService/TrendingPosts',
+            post__pb2.TrendingPostsRequest.SerializeToString,
             post__pb2.PostListResponse.FromString,
             options,
             channel_credentials,

@@ -1,16 +1,118 @@
 import strawberry
-from typing import List, Optional
+import typing
+from typing import List, Optional, Dict
 from datetime import datetime
 import logging
-import typing
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from app.clients.post.post_client import post_service_client
 from app.clients.user.user_client import user_service_client
 
-from app.utils.jwt_utils import get_token
+from app.utils.jwt_utils import get_token, decode_jwt_token
 from app.utils.s3_utils import generate_presigned_get_url_from_url
 from strawberry.types import Info
+from app.exception.UserException import REException
 
 logger = logging.getLogger(__name__)
+
+
+def _viewer_user_id_from_token(token: Optional[str]) -> int:
+    if not token:
+        return 0
+    try:
+        payload = decode_jwt_token(token)
+        return int(payload.get("user_id") or payload.get("sub") or 0)
+    except Exception:
+        return 0
+
+
+def _resolve_user_profile_photo(user_id: int, token: Optional[str]) -> Optional[str]:
+    try:
+        user = user_service_client.get_user(str(user_id), token=token)
+        candidate = getattr(user, "profile_photo", None) or None
+        if (not candidate) and getattr(user, "profile_photo_id", 0):
+            media = user_service_client.get_media(
+                media_id=int(user.profile_photo_id), token=token
+            )
+            candidate = getattr(media, "media_url", None) or None
+        return candidate
+    except Exception:
+        return None
+
+
+def _batch_profile_photos(user_ids: List[int], token: Optional[str]) -> Dict[int, Optional[str]]:
+    """One lookup per unique author (parallel), instead of per post."""
+    unique_ids = [uid for uid in {int(u) for u in user_ids if u}]
+    out: Dict[int, Optional[str]] = {uid: None for uid in unique_ids}
+    if not unique_ids:
+        return out
+
+    workers = min(8, len(unique_ids))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = {
+            pool.submit(_resolve_user_profile_photo, uid, token): uid
+            for uid in unique_ids
+        }
+        for fut in as_completed(futures):
+            uid = futures[fut]
+            try:
+                out[uid] = fut.result()
+            except Exception:
+                out[uid] = None
+    return out
+
+
+def _media_dict_from_grpc(m) -> dict:
+    uploaded = getattr(m, "uploaded_at", None)
+    media_url = getattr(m, "media_url", None)
+    return {
+        "id": m.id,
+        "mediaType": m.media_type,
+        "mediaUrl": media_url,
+        "mediaOrder": m.media_order,
+        "mediaSize": getattr(m, "media_size", None),
+        "caption": getattr(m, "caption", "") or "",
+        "uploadedAt": datetime.fromtimestamp(uploaded) if uploaded else datetime.utcnow(),
+        "signedUrl": generate_presigned_get_url_from_url(media_url) if media_url else None,
+    }
+
+
+def _post_dict_from_grpc(post) -> dict:
+    return {
+        "id": post.id,
+        "userId": post.user_id,
+        "userFirstName": getattr(post, "user_first_name", "") or "",
+        "userLastName": getattr(post, "user_last_name", "") or "",
+        "userEmail": getattr(post, "user_email", "") or "",
+        "userPhone": getattr(post, "user_phone", "") or "",
+        "userRole": getattr(post, "user_role", "") or "",
+        "title": post.title,
+        "content": post.content,
+        "visibility": post.visibility,
+        "propertyType": getattr(post, "type", "") or "",
+        "location": post.location,
+        "latitude": getattr(post, "latitude", None),
+        "longitude": getattr(post, "longitude", None),
+        "price": post.price,
+        "status": post.status,
+        "createdAt": datetime.fromtimestamp(post.created_at) if post.created_at else datetime.utcnow(),
+        "media": [_media_dict_from_grpc(m) for m in post.media],
+        "likeCount": post.like_count,
+        "commentCount": post.comment_count,
+        "isLiked": bool(getattr(post, "is_liked", False)),
+    }
+
+
+def _enrich_posts_with_profile_photos(posts_data: List[dict], token: Optional[str]) -> List[dict]:
+    photos = _batch_profile_photos([p["userId"] for p in posts_data], token)
+    for p in posts_data:
+        raw = photos.get(int(p["userId"]))
+        p["userProfilePhoto"] = raw
+        p["userProfilePhotoSignedUrl"] = (
+            generate_presigned_get_url_from_url(raw) if raw else None
+        )
+    return posts_data
+
 
 @strawberry.type
 class Comment:
@@ -48,6 +150,7 @@ class Comment:
             likeCount=data['likeCount']
         )
 
+
 @strawberry.type
 class CommentResponse:
     success: bool
@@ -62,6 +165,7 @@ class CommentResponse:
             comment=Comment.from_dict(data.get('comment'))
         )
 
+
 @strawberry.type
 class PostMedia:
     id: int
@@ -71,17 +175,8 @@ class PostMedia:
     mediaSize: Optional[int]
     caption: Optional[str]
     uploadedAt: datetime
+    signedUrl: Optional[str] = None
 
-    @strawberry.field
-    def signedUrl(self) -> Optional[str]:
-        try:
-            if not self.mediaUrl:
-                return None
-            url = generate_presigned_get_url_from_url(self.mediaUrl)
-            return url or self.mediaUrl
-        except Exception as e:
-            logger.error(f"Error in PostMedia.signedUrl: {str(e)}")
-            return self.mediaUrl
 
 @strawberry.input
 class PostMediaInput:
@@ -91,6 +186,7 @@ class PostMediaInput:
     filePath: Optional[str] = None
     fileName: Optional[str] = None
     contentType: Optional[str] = None
+
 
 @strawberry.type
 class Post:
@@ -115,26 +211,8 @@ class Post:
     likeCount: int
     commentCount: int
     userProfilePhoto: Optional[str] = None
-
-    @strawberry.field
-    def userProfilePhotoSignedUrl(self, info: Info) -> Optional[str]:
-        try:
-            if self.userProfilePhoto:
-                url = generate_presigned_get_url_from_url(self.userProfilePhoto)
-                if url:
-                    return url
-            token = get_token(info)
-            user = user_service_client.get_user(self.userId, token=token)
-            candidate = getattr(user, 'profile_photo', None)
-            if (not candidate) and getattr(user, 'profile_photo_id', 0):
-                media = user_service_client.get_media(media_id=int(user.profile_photo_id), token=token)
-                candidate = getattr(media, 'media_url', None)
-            if not candidate:
-                return None
-            url = generate_presigned_get_url_from_url(candidate)
-            return url or candidate
-        except Exception:
-            return None
+    isLiked: bool = False
+    userProfilePhotoSignedUrl: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: dict):
@@ -149,8 +227,15 @@ class Post:
                 mediaSize=m.get('mediaSize'),
                 caption=m.get('caption'),
                 uploadedAt=m['uploadedAt'],
+                signedUrl=m.get('signedUrl') or (
+                    generate_presigned_get_url_from_url(m['mediaUrl']) if m.get('mediaUrl') else None
+                ),
             ) for m in data.get('media', [])
         ]
+        photo = data.get('userProfilePhoto')
+        signed_photo = data.get('userProfilePhotoSignedUrl')
+        if photo and not signed_photo:
+            signed_photo = generate_presigned_get_url_from_url(photo)
         return cls(
             id=data['id'],
             userId=data['userId'],
@@ -172,8 +257,11 @@ class Post:
             media=media_list,
             likeCount=data['likeCount'],
             commentCount=data['commentCount'],
-            userProfilePhoto=data.get('userProfilePhoto'),
+            userProfilePhoto=photo,
+            isLiked=bool(data.get('isLiked', False)),
+            userProfilePhotoSignedUrl=signed_photo,
         )
+
 
 @strawberry.type
 class PostResponse:
@@ -189,6 +277,7 @@ class PostResponse:
             post=Post.from_dict(data.get('post'))
         )
 
+
 @strawberry.type
 class Query:
     @strawberry.field
@@ -196,38 +285,9 @@ class Query:
         logger.debug(f"Query.post called with postId: {postId}")
         token = get_token(info)
         result = post_service_client.get_post(post_id=postId, token=token)
-        # Convert gRPC response to dictionary format
         if result and result.success and result.post:
-            post_data = {
-                'id': result.post.id,
-                'userId': result.post.user_id,
-                'userFirstName': result.post.user_first_name,
-                'userLastName': result.post.user_last_name,
-                'userEmail': result.post.user_email,
-                'userPhone': result.post.user_phone,
-                'userRole': result.post.user_role,
-                'title': result.post.title,
-                'content': result.post.content,
-                'visibility': result.post.visibility,
-                'propertyType': result.post.type,
-                'location': result.post.location,
-                'latitude': result.post.latitude,
-                'longitude': result.post.longitude,
-                'price': result.post.price,
-                'status': result.post.status,
-                'createdAt': datetime.fromtimestamp(result.post.created_at),
-                'media': [{
-                    'id': m.id,
-                    'mediaType': m.media_type,
-                    'mediaUrl': m.media_url,
-                    'mediaOrder': m.media_order,
-                    'mediaSize': m.media_size,
-                    'caption': m.caption,
-                    'uploadedAt': datetime.fromtimestamp(m.uploaded_at)
-                } for m in result.post.media],
-                'likeCount': result.post.like_count,
-                'commentCount': result.post.comment_count
-            }
+            post_data = _post_dict_from_grpc(result.post)
+            _enrich_posts_with_profile_photos([post_data], token)
             return Post.from_dict(post_data)
         return None
 
@@ -235,48 +295,19 @@ class Query:
     def postsByUser(self, info: Info, userId: int, page: int = 1, limit: int = 10) -> List[Post]:
         logger.debug(f"Query.postsByUser called with userId: {userId}, page: {page}, limit: {limit}")
         token = get_token(info)
-        result = post_service_client.get_posts_by_user(user_id=userId, page=page, limit=limit, token=token)
-        
+        viewer_user_id = _viewer_user_id_from_token(token)
+        result = post_service_client.get_posts_by_user(
+            user_id=userId, page=page, limit=limit,
+            viewer_user_id=viewer_user_id, token=token
+        )
+
         if not result:
             logger.error("No result returned")
             return []
-            
-        posts_data = []
-        for post in result:
-            logger.debug(f"Processing post: {post}")
-            post_dict = {
-                'id': post.id,
-                'userId': post.user_id,
-                'userFirstName': getattr(post, 'user_first_name', ''),
-                'userLastName': getattr(post, 'user_last_name', ''),
-                'userEmail': getattr(post, 'user_email', ''),
-                'userPhone': getattr(post, 'user_phone', ''),
-                'userRole': getattr(post, 'user_role', ''),
-                'title': post.title,
-                'content': post.content,
-                'visibility': post.visibility,
-                'propertyType': getattr(post, 'type', ''),
-                'location': post.location,
-                'latitude': getattr(post, 'latitude', None),
-                'longitude': getattr(post, 'longitude', None),
-                'price': post.price,
-                'status': post.status,
-                'createdAt': datetime.fromtimestamp(post.created_at),
-                'media': [{
-                    'id': media.id,
-                    'mediaType': media.media_type,
-                    'mediaUrl': media.media_url,
-                    'mediaOrder': media.media_order,
-                    'mediaSize': getattr(media, 'media_size', None),
-                    'caption': getattr(media, 'caption', ''),
-                    'uploadedAt': datetime.fromtimestamp(media.uploaded_at) if hasattr(media, 'uploaded_at') else datetime.now()
-                } for media in post.media],
-                'likeCount': post.like_count,
-                'commentCount': post.comment_count
-            }
-            posts_data.append(Post.from_dict(post_dict))
-        
-        return posts_data
+
+        posts_data = [_post_dict_from_grpc(post) for post in result]
+        _enrich_posts_with_profile_photos(posts_data, token)
+        return [Post.from_dict(p) for p in posts_data]
 
     @strawberry.field
     def searchPosts(
@@ -291,60 +322,61 @@ class Query:
     ) -> List[Post]:
         logger.debug(f"Query.searchPosts called with propertyType: {propertyType}, location: {location}")
         token = get_token(info)
-        result = post_service_client.search_posts(
-            property_type=propertyType,
-            location=location,
-            min_price=minPrice,
-            max_price=maxPrice,
-            status=status,
-            page=page,
-            limit=limit,
-            token=token
-        )
-        
+        viewer_user_id = _viewer_user_id_from_token(token)
+        try:
+            result = post_service_client.search_posts(
+                property_type=propertyType,
+                location=location,
+                min_price=minPrice,
+                max_price=maxPrice,
+                status=status,
+                page=page,
+                limit=limit,
+                viewer_user_id=viewer_user_id,
+                token=token
+            )
+        except Exception as e:
+            logger.error(f"searchPosts gRPC failed: {e}")
+            raise REException(
+                "POSTS_SEARCH_FAILED",
+                "Failed to load posts",
+                str(e),
+            ).to_graphql_error()
+
         if not result or not result.success:
-            logger.error("No result or unsuccessful response")
-            return []
-            
-        posts_data = []
-        for post in result.posts:
-            logger.debug(f"Processing post: {post}")
-            post_dict = {
-                'id': post.id,
-                'userId': post.user_id,
-                'userFirstName': getattr(post, 'user_first_name', ''),
-                'userLastName': getattr(post, 'user_last_name', ''),
-                'userEmail': getattr(post, 'user_email', ''),
-                'userPhone': getattr(post, 'user_phone', ''),
-                'userRole': getattr(post, 'user_role', ''),
-                'title': post.title,
-                'content': post.content,
-                'visibility': post.visibility,
-                'propertyType': getattr(post, 'type', ''),
-                'location': post.location,
-                'latitude': getattr(post, 'latitude', None),
-                'longitude': getattr(post, 'longitude', None),
-                'price': post.price,
-                'status': post.status,
-                'createdAt': datetime.fromtimestamp(post.created_at),
-                'media': [{
-                    'id': m.id,
-                    'mediaType': m.media_type,
-                    'mediaUrl': m.media_url,
-                    'mediaOrder': m.media_order,
-                    'mediaSize': m.media_size,
-                    'caption': m.caption,
-                    'uploadedAt': datetime.fromtimestamp(m.uploaded_at)
-                } for m in post.media],
-                'likeCount': post.like_count,
-                'commentCount': post.comment_count
-            }
-            logger.debug(f"Created post dict: {post_dict}")
-            posts_data.append(post_dict)
-            
+            msg = getattr(result, "message", None) or "No posts returned"
+            logger.error(f"searchPosts unsuccessful: {msg}")
+            raise REException(
+                "POSTS_SEARCH_FAILED",
+                "Failed to load posts",
+                msg,
+            ).to_graphql_error()
+
+        posts_data = [_post_dict_from_grpc(post) for post in result.posts]
+        _enrich_posts_with_profile_photos(posts_data, token)
         posts = [Post.from_dict(post) for post in posts_data]
         logger.debug(f"Returning {len(posts)} posts")
         return posts
+
+    @strawberry.field
+    def trendingPosts(self, info: Info, limit: int = 10) -> List[Post]:
+        token = get_token(info)
+        viewer_user_id = _viewer_user_id_from_token(token)
+        try:
+            result = post_service_client.trending_posts(
+                limit=limit, viewer_user_id=viewer_user_id, token=token
+            )
+        except Exception as e:
+            raise REException(
+                "TRENDING_POSTS_FAILED",
+                "Failed to load trending posts",
+                str(e),
+            ).to_graphql_error()
+        if not result or not result.success:
+            return []
+        posts_data = [_post_dict_from_grpc(post) for post in result.posts]
+        _enrich_posts_with_profile_photos(posts_data, token)
+        return [Post.from_dict(p) for p in posts_data]
 
     @strawberry.field
     def postComments(
@@ -356,10 +388,10 @@ class Query:
         logger.debug(f"Query.postComments called with postId: {postId}")
         token = get_token(info)
         result = post_service_client.get_comments(post_id=postId, page=page, limit=limit, token=token)
-        
+
         if not result or not result.success:
             return []
-            
+
         comments_data = []
         for comment in result.comments:
             comment_dict = {
@@ -394,8 +426,9 @@ class Query:
                 'likeCount': comment.like_count
             }
             comments_data.append(comment_dict)
-            
+
         return [Comment.from_dict(comment) for comment in comments_data]
+
 
 @strawberry.type
 class MediaResponse:
@@ -408,6 +441,7 @@ class MediaResponse:
             success=data['success'],
             message=data['message']
         )
+
 
 @strawberry.type
 class Mutation:
