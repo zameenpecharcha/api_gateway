@@ -130,9 +130,11 @@ async def chat_ws(websocket: WebSocket, room_id: str, user_id: str):
             {"eventType": 4, "messageId": "<uuid>", "reactionEmoji": "👍"}
         Delete message:
             {"eventType": 5, "messageId": "<uuid>", "sentAt": <unix_ms>}
+        Edit message:
+            {"eventType": 7, "messageId": "<uuid>", "text": "updated text"}
 
     Server → receive JSON with all fields including:
-        eventType, replyToMessageId, reactionEmoji, isDeleted,
+        eventType, replyToMessageId, reactionEmoji, isDeleted, editedAt,
         status, isOnline, lastSeenAt
     """
     from app.utils.log_utils import log_msg

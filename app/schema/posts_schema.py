@@ -3,10 +3,13 @@ import typing
 from typing import List, Optional, Dict
 from datetime import datetime
 import logging
+import json as _json
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from app.clients.post.post_client import post_service_client
 from app.clients.user.user_client import user_service_client
+from app.clients.property.property_client import property_service_client
 
 from app.utils.jwt_utils import get_token, decode_jwt_token
 from app.utils.s3_utils import generate_presigned_get_url_from_url
@@ -14,6 +17,9 @@ from strawberry.types import Info
 from app.exception.UserException import REException
 
 logger = logging.getLogger(__name__)
+
+# User: @[123:Rohit]   Property: @[p:prop-id:Lake Villa]
+_MENTION_RE = re.compile(r"@\[(?:(p):)?([^:\]]+):([^\]]+)\]")
 
 
 def _viewer_user_id_from_token(token: Optional[str]) -> int:
@@ -26,18 +32,129 @@ def _viewer_user_id_from_token(token: Optional[str]) -> int:
         return 0
 
 
+def _extract_mentioned_user_ids(text: Optional[str]) -> List[int]:
+    if not text:
+        return []
+    ids: List[int] = []
+    seen = set()
+    for match in _MENTION_RE.finditer(text):
+        if match.group(1) == "p":
+            continue
+        try:
+            uid = int(match.group(2))
+        except (TypeError, ValueError):
+            continue
+        if uid and uid not in seen:
+            seen.add(uid)
+            ids.append(uid)
+    return ids
+
+
+def _extract_mentioned_property_ids(text: Optional[str]) -> List[str]:
+    if not text:
+        return []
+    ids: List[str] = []
+    seen = set()
+    for match in _MENTION_RE.finditer(text):
+        if match.group(1) != "p":
+            continue
+        pid = (match.group(2) or "").strip()
+        if pid and pid not in seen:
+            seen.add(pid)
+            ids.append(pid)
+    return ids
+
+
+def _notify_mentioned_users(
+    *,
+    text: Optional[str],
+    author_id: int,
+    author_name: str,
+    token: Optional[str],
+    title: str,
+    message: str,
+    metadata: str,
+) -> None:
+    """Best-effort mention notifications — never fail the parent mutation."""
+    mentioned = [uid for uid in _extract_mentioned_user_ids(text) if uid != author_id]
+    for uid in mentioned:
+        try:
+            user_service_client.create_notification(
+                user_id=uid,
+                title=title,
+                message=message,
+                type="mention",
+                metadata=metadata,
+                token=token,
+            )
+        except Exception as e:
+            logger.warning(
+                "mention notify failed author=%s target=%s err=%s",
+                author_id,
+                uid,
+                e,
+            )
+
+    for prop_id in _extract_mentioned_property_ids(text):
+        try:
+            prop_resp = property_service_client.get_property(prop_id, token=token)
+            prop = getattr(prop_resp, "property", None) or prop_resp
+            owner_raw = getattr(prop, "user_id", None) or getattr(prop, "userId", None)
+            if owner_raw is None:
+                continue
+            owner_id = int(owner_raw)
+            if not owner_id or owner_id == author_id:
+                continue
+            prop_title = getattr(prop, "title", None) or "your property"
+            user_service_client.create_notification(
+                user_id=owner_id,
+                title="Your property was mentioned",
+                message=f"{author_name} mentioned {prop_title}",
+                type="mention",
+                metadata=_json.dumps(
+                    {
+                        **(_json.loads(metadata) if metadata else {}),
+                        "propertyId": prop_id,
+                    }
+                ),
+                token=token,
+            )
+        except Exception as e:
+            logger.warning(
+                "property mention notify failed author=%s property=%s err=%s",
+                author_id,
+                prop_id,
+                e,
+            )
+
+
 def _resolve_user_profile_photo(user_id: int, token: Optional[str]) -> Optional[str]:
     try:
-        user = user_service_client.get_user(str(user_id), token=token)
+        user = user_service_client.get_user(int(user_id), token=token)
         candidate = getattr(user, "profile_photo", None) or None
         if (not candidate) and getattr(user, "profile_photo_id", 0):
-            media = user_service_client.get_media(
-                media_id=int(user.profile_photo_id), token=token
-            )
-            candidate = getattr(media, "media_url", None) or None
-        return candidate
-    except Exception:
+            try:
+                media = user_service_client.get_media(
+                    media_id=int(user.profile_photo_id), token=token
+                )
+                candidate = getattr(media, "media_url", None) or None
+            except Exception as e:
+                logger.warning("profile media lookup failed user_id=%s: %s", user_id, e)
+                candidate = None
+        return candidate or None
+    except Exception as e:
+        logger.warning("profile photo lookup failed user_id=%s: %s", user_id, e)
         return None
+
+
+def _safe_presign(url: Optional[str]) -> Optional[str]:
+    if not url:
+        return None
+    try:
+        return generate_presigned_get_url_from_url(url) or url
+    except Exception as e:
+        logger.warning("presign failed for url=%s: %s", str(url)[:80], e)
+        return url
 
 
 def _batch_profile_photos(user_ids: List[int], token: Optional[str]) -> Dict[int, Optional[str]]:
@@ -108,10 +225,30 @@ def _enrich_posts_with_profile_photos(posts_data: List[dict], token: Optional[st
     for p in posts_data:
         raw = photos.get(int(p["userId"]))
         p["userProfilePhoto"] = raw
-        p["userProfilePhotoSignedUrl"] = (
-            generate_presigned_get_url_from_url(raw) if raw else None
-        )
+        p["userProfilePhotoSignedUrl"] = _safe_presign(raw)
     return posts_data
+
+
+def _apply_photo_to_comment_dict(comment: dict, photos: Dict[int, Optional[str]]) -> None:
+    raw = photos.get(int(comment["userId"]))
+    comment["profilePhoto"] = raw
+    comment["profilePhotoSignedUrl"] = _safe_presign(raw)
+    for reply in comment.get("replies") or []:
+        reply_raw = photos.get(int(reply["userId"]))
+        reply["profilePhoto"] = reply_raw
+        reply["profilePhotoSignedUrl"] = _safe_presign(reply_raw)
+
+
+def _enrich_comments_with_profile_photos(comments_data: List[dict], token: Optional[str]) -> List[dict]:
+    user_ids: List[int] = []
+    for c in comments_data:
+        user_ids.append(int(c["userId"]))
+        for r in c.get("replies") or []:
+            user_ids.append(int(r["userId"]))
+    photos = _batch_profile_photos(user_ids, token)
+    for c in comments_data:
+        _apply_photo_to_comment_dict(c, photos)
+    return comments_data
 
 
 @strawberry.type
@@ -129,6 +266,9 @@ class Comment:
     commentedAt: datetime
     replies: List['Comment']
     likeCount: int
+    profilePhoto: Optional[str] = None
+    profilePhotoSignedUrl: Optional[str] = None
+    editedAt: Optional[datetime] = None
 
     @classmethod
     def from_dict(cls, data: dict):
@@ -147,7 +287,10 @@ class Comment:
             addedAt=data['addedAt'],
             commentedAt=data['commentedAt'],
             replies=[cls.from_dict(reply) for reply in data.get('replies', [])],
-            likeCount=data['likeCount']
+            likeCount=data['likeCount'],
+            profilePhoto=data.get('profilePhoto'),
+            profilePhotoSignedUrl=data.get('profilePhotoSignedUrl'),
+            editedAt=data.get('editedAt'),
         )
 
 
@@ -367,16 +510,18 @@ class Query:
                 limit=limit, viewer_user_id=viewer_user_id, token=token
             )
         except Exception as e:
-            raise REException(
-                "TRENDING_POSTS_FAILED",
-                "Failed to load trending posts",
-                str(e),
-            ).to_graphql_error()
+            # Sidebar widget — never hard-fail the home page (often races with searchPosts)
+            logger.warning("trendingPosts failed: %s", e)
+            return []
         if not result or not result.success:
             return []
-        posts_data = [_post_dict_from_grpc(post) for post in result.posts]
-        _enrich_posts_with_profile_photos(posts_data, token)
-        return [Post.from_dict(p) for p in posts_data]
+        try:
+            posts_data = [_post_dict_from_grpc(post) for post in result.posts]
+            # Sidebar only needs id/title/counts — skip S3 + user-service fan-out
+            return [Post.from_dict(p) for p in posts_data]
+        except Exception as e:
+            logger.warning("trendingPosts map failed: %s", e)
+            return []
 
     @strawberry.field
     def postComments(
@@ -406,6 +551,7 @@ class Query:
                 'status': comment.status,
                 'addedAt': datetime.fromtimestamp(comment.added_at),
                 'commentedAt': datetime.fromtimestamp(comment.commented_at),
+                'editedAt': datetime.fromtimestamp(comment.edited_at) if getattr(comment, 'edited_at', 0) else None,
                 'replies': [
                     {
                         'id': r.id,
@@ -419,6 +565,7 @@ class Query:
                         'status': r.status,
                         'addedAt': datetime.fromtimestamp(r.added_at),
                         'commentedAt': datetime.fromtimestamp(r.commented_at),
+                        'editedAt': datetime.fromtimestamp(r.edited_at) if getattr(r, 'edited_at', 0) else None,
                         'replies': [],
                         'likeCount': r.like_count
                     } for r in comment.replies
@@ -427,6 +574,7 @@ class Query:
             }
             comments_data.append(comment_dict)
 
+        _enrich_comments_with_profile_photos(comments_data, token)
         return [Comment.from_dict(comment) for comment in comments_data]
 
 
@@ -477,6 +625,26 @@ class Mutation:
             token=token
         )
         logger.debug(f"CreatePost result: {result}")
+        if result.get("success"):
+            post_obj = result.get("post") or {}
+            post_id = post_obj.get("id") if isinstance(post_obj, dict) else None
+            author_name = "Someone"
+            try:
+                author = user_service_client.get_user(int(userId), token=token)
+                first = getattr(author, "first_name", "") or ""
+                last = getattr(author, "last_name", "") or ""
+                author_name = f"{first} {last}".strip() or author_name
+            except Exception:
+                pass
+            _notify_mentioned_users(
+                text=content,
+                author_id=int(userId),
+                author_name=author_name,
+                token=token,
+                title="You were mentioned",
+                message=f"{author_name} mentioned you in a post: {title}",
+                metadata=_json.dumps({"postId": post_id, "postTitle": title}),
+            )
         return PostResponse.from_dict(result)
 
     @strawberry.mutation
@@ -549,6 +717,26 @@ class Mutation:
             token=token
         )
         logger.debug(f"CreateComment result: {result}")
+        if result.get("success"):
+            author_name = "Someone"
+            try:
+                author = user_service_client.get_user(int(userId), token=token)
+                first = getattr(author, "first_name", "") or ""
+                last = getattr(author, "last_name", "") or ""
+                author_name = f"{first} {last}".strip() or author_name
+            except Exception:
+                pass
+            comment_obj = result.get("comment") or {}
+            comment_id = comment_obj.get("id") if isinstance(comment_obj, dict) else None
+            _notify_mentioned_users(
+                text=comment,
+                author_id=int(userId),
+                author_name=author_name,
+                token=token,
+                title="You were mentioned",
+                message=f"{author_name} mentioned you in a comment",
+                metadata=_json.dumps({"postId": postId, "commentId": comment_id}),
+            )
         return CommentResponse.from_dict(result)
 
     @strawberry.mutation
@@ -582,13 +770,15 @@ class Mutation:
     def likeComment(
         self, info: Info,
         commentId: int,
-        userId: int
+        userId: int,
+        reactionType: Optional[str] = "like",
     ) -> CommentResponse:
         logger.debug(f"Mutation.likeComment called with commentId: {commentId}, userId: {userId}")
         token = get_token(info)
         result = post_service_client.like_comment(
             comment_id=commentId,
             user_id=userId,
+            reaction_type=reactionType or "like",
             token=token
         )
         return CommentResponse.from_dict(result)

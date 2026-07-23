@@ -108,6 +108,7 @@ class ChatMessage:
     media_url: str
     reply_to_message_id: str
     is_deleted: bool
+    edited_at: BigInt = 0  # Unix ms; 0 = never edited
     event_type: int
     status: int             # 0=SENDING 1=SENT 2=DELIVERED 3=READ
 
@@ -133,6 +134,69 @@ class RoomParticipant:
     avatar_url: str
 
 
+def _batch_room_participants(
+    member_ids_by_room: typing.List[typing.List[str]],
+    token: typing.Optional[str],
+) -> typing.List[typing.List[RoomParticipant]]:
+    """Resolve unique member profiles once, then map back per room."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from app.clients.user.user_client import user_service_client
+    from app.utils.s3_utils import generate_presigned_get_url_from_url
+
+    unique_ids = sorted({str(uid) for members in member_ids_by_room for uid in members if uid})
+    profiles: typing.Dict[str, RoomParticipant] = {}
+
+    def _one(uid: str) -> typing.Tuple[str, RoomParticipant]:
+        try:
+            u = user_service_client.get_user(uid, token=token)
+            raw_photo = getattr(u, "profile_photo", None) or ""
+            if (not raw_photo) and getattr(u, "profile_photo_id", 0):
+                try:
+                    media = user_service_client.get_media(
+                        media_id=int(u.profile_photo_id), token=token
+                    )
+                    raw_photo = getattr(media, "media_url", None) or ""
+                except Exception:
+                    raw_photo = ""
+            avatar = ""
+            if raw_photo:
+                try:
+                    avatar = generate_presigned_get_url_from_url(raw_photo) or raw_photo
+                except Exception:
+                    avatar = raw_photo
+            return uid, RoomParticipant(
+                user_id=str(getattr(u, "id", uid)),
+                first_name=getattr(u, "first_name", "") or "",
+                last_name=getattr(u, "last_name", "") or "",
+                avatar_url=avatar or "",
+            )
+        except Exception:
+            return uid, RoomParticipant(
+                user_id=uid,
+                first_name="",
+                last_name="",
+                avatar_url="",
+            )
+
+    if unique_ids:
+        workers = min(8, len(unique_ids))
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(_one, uid) for uid in unique_ids]
+            for fut in as_completed(futures):
+                uid, participant = fut.result()
+                profiles[uid] = participant
+
+    out: typing.List[typing.List[RoomParticipant]] = []
+    for members in member_ids_by_room:
+        out.append([
+            profiles.get(str(uid)) or RoomParticipant(
+                user_id=str(uid), first_name="", last_name="", avatar_url=""
+            )
+            for uid in members
+        ])
+    return out
+
+
 @strawberry.type
 class UserRoom:
     room_id: str
@@ -142,31 +206,7 @@ class UserRoom:
     last_message_at: BigInt  # Unix ms
     has_unread: bool
     member_ids: typing.List[str]
-
-    @strawberry.field
-    def participants(self, info: Info) -> typing.List[RoomParticipant]:
-        """Resolve participant profile details (name + avatar) from user_service."""
-        from app.clients.user.user_client import user_service_client
-        token = _authorization_from_info(info)
-        result: typing.List[RoomParticipant] = []
-        for uid in self.member_ids:
-            try:
-                # Use a short timeout so a slow user_service doesn't stall room loading
-                u = user_service_client.get_user(uid, token=token)
-                result.append(RoomParticipant(
-                    user_id=str(u.id),
-                    first_name=u.first_name,
-                    last_name=u.last_name,
-                    avatar_url=getattr(u, "profile_photo_signed_url", "") or "",
-                ))
-            except Exception:
-                result.append(RoomParticipant(
-                    user_id=uid,
-                    first_name="",
-                    last_name="",
-                    avatar_url="",
-                ))
-        return result
+    participants: typing.List[RoomParticipant] = strawberry.field(default_factory=list)
 
 
 # ── Query ──────────────────────────────────────────────────────────────────────
@@ -263,6 +303,7 @@ class Query:
                     media_url=m.media_url,
                     reply_to_message_id=m.reply_to_message_id,
                     is_deleted=m.is_deleted,
+                    edited_at=getattr(m, "edited_at_unix_ms", 0) or 0,
                     event_type=m.event_type,
                     status=m.status,
                 )
@@ -306,6 +347,8 @@ class Query:
             log_msg("info", f"GetUserRooms user={user_id}")
             token = _authorization_from_info(info)
             resp = chat_service_client.get_user_rooms(user_id, token=token)
+            member_lists = [list(r.member_ids) for r in resp.rooms]
+            participants_by_room = _batch_room_participants(member_lists, token)
             return [
                 UserRoom(
                     room_id=r.room_id,
@@ -315,8 +358,9 @@ class Query:
                     last_message_at=r.last_message_at,
                     has_unread=r.has_unread,
                     member_ids=list(r.member_ids),
+                    participants=participants_by_room[i] if i < len(participants_by_room) else [],
                 )
-                for r in resp.rooms
+                for i, r in enumerate(resp.rooms)
             ]
         except grpc.RpcError as e:
             log_msg("error", f"GetUserRooms error: {str(e)}")

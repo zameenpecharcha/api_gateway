@@ -12,7 +12,7 @@ class UserServiceClient(GRPCBaseClient):
         super().__init__(user_pb2_grpc.UserServiceStub, target=target)
 
     def get_user(self, user_id: str,token=None):
-        request = user_pb2.UserRequest(id=user_id)
+        request = user_pb2.UserRequest(id=int(user_id))
         return self._call("GetUser", request,token=token)
 
     def create_user(self, first_name, last_name, email, phone, password, role=None,
@@ -43,7 +43,7 @@ class UserServiceClient(GRPCBaseClient):
         return self._call(self.stub.CreateUserRating, request, token=token)
 
     def get_user_ratings(self, user_id,token=None):
-        request = user_pb2.UserRequest(id=user_id)
+        request = user_pb2.UserRequest(id=int(user_id))
         return self._call(self.stub.GetUserRatings, request,token=token)
 
     def follow_user(self, user_id, following_id, followee_type: str = "user", status: str = "pending", token=None):
@@ -120,11 +120,11 @@ class UserServiceClient(GRPCBaseClient):
         return self._call(self.stub.UpdateCoverPhoto, request, token=token)
 
     def get_user_followers(self, user_id,token=None):
-        request = user_pb2.UserRequest(id=user_id)
+        request = user_pb2.UserRequest(id=int(user_id))
         return self._call(self.stub.GetUserFollowers, request,token=token)
 
     def get_user_following(self, user_id,token=None):
-        request = user_pb2.UserRequest(id=user_id)
+        request = user_pb2.UserRequest(id=int(user_id))
         return self._call(self.stub.GetUserFollowing, request,token=token)
 
     def check_following_status(self, user_id, following_id,token=None):
@@ -135,7 +135,7 @@ class UserServiceClient(GRPCBaseClient):
         return self._call(self.stub.CheckFollowingStatus, request,token=token)
 
     def get_pending_follow_requests(self, user_id, token=None):
-        request = user_pb2.UserRequest(id=user_id)
+        request = user_pb2.UserRequest(id=int(user_id))
         return self._call(self.stub.GetPendingFollowRequests, request, token=token)
 
     def update_user_location(self, user_id: int, latitude: float, longitude: float, token=None):
