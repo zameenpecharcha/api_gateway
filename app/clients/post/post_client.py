@@ -145,16 +145,23 @@ class PostsServiceClient(GRPCBaseClient):
             # Filter out None values
             update_data = {k: v for k, v in kwargs.items() if v is not None}
 
-            # Convert camelCase to snake_case for fields and map GraphQL propertyType to gRPC 'type'
+            # Convert camelCase / gateway names to gRPC PostUpdateRequest fields
             if 'propertyType' in update_data:
                 update_data['type'] = update_data.pop('propertyType')
+            if 'property_type' in update_data:
+                update_data['type'] = update_data.pop('property_type')
             # mapLocation removed; ignore if present
             if 'mapLocation' in update_data:
                 update_data.pop('mapLocation')
-            if 'latitude' in update_data:
-                update_data['latitude'] = update_data['latitude']
-            if 'longitude' in update_data:
-                update_data['longitude'] = update_data['longitude']
+            if 'map_location' in update_data:
+                update_data.pop('map_location')
+
+            # Only known PostUpdateRequest fields
+            allowed = {
+                'title', 'content', 'visibility', 'type', 'location',
+                'latitude', 'longitude', 'price', 'status', 'is_anonymous',
+            }
+            update_data = {k: v for k, v in update_data.items() if k in allowed}
 
             request = post_pb2.PostUpdateRequest(
                 post_id=post_id,
@@ -163,7 +170,7 @@ class PostsServiceClient(GRPCBaseClient):
             response = self._call(self.stub.UpdatePost, request,token=token)
 
             # Convert the gRPC response to a dictionary
-            if response.post:
+            if response.post and response.post.id:
                 media_list = []
                 for m in response.post.media:
                     media_list.append({
@@ -179,12 +186,16 @@ class PostsServiceClient(GRPCBaseClient):
                 post_dict = {
                     'id': response.post.id,
                     'userId': response.post.user_id,
+                    'userFirstName': getattr(response.post, 'user_first_name', '') or '',
+                    'userLastName': getattr(response.post, 'user_last_name', '') or '',
+                    'userEmail': getattr(response.post, 'user_email', '') or '',
+                    'userPhone': getattr(response.post, 'user_phone', '') or '',
+                    'userRole': getattr(response.post, 'user_role', '') or '',
                     'title': response.post.title,
                     'content': response.post.content,
                     'visibility': response.post.visibility,
                     'propertyType': response.post.type,
                     'location': response.post.location,
-                    # mapLocation removed
                     'latitude': getattr(response.post, 'latitude', 0.0),
                     'longitude': getattr(response.post, 'longitude', 0.0),
                     'price': response.post.price,
@@ -198,11 +209,17 @@ class PostsServiceClient(GRPCBaseClient):
                 post_dict = None
 
             return {
-                'success': response.success,
-                'message': response.message,
+                'success': bool(response.success),
+                'message': response.message or ('Post updated successfully' if response.success else 'Failed to update post'),
                 'post': post_dict
             }
         except grpc.RpcError as e:
+            return {
+                'success': False,
+                'message': f'Error updating post: {str(e)}',
+                'post': None
+            }
+        except Exception as e:
             return {
                 'success': False,
                 'message': f'Error updating post: {str(e)}',
@@ -214,13 +231,23 @@ class PostsServiceClient(GRPCBaseClient):
             request = post_pb2.PostRequest(post_id=post_id)
             response = self._call(self.stub.DeletePost, request,token=token)
             return {
-                'success': True,
-                'message': 'Post deleted successfully'
+                'success': bool(getattr(response, 'success', False)),
+                'message': getattr(response, 'message', None) or (
+                    'Post deleted successfully' if getattr(response, 'success', False) else 'Failed to delete post'
+                ),
+                'post': None,
             }
         except grpc.RpcError as e:
             return {
                 'success': False,
-                'message': f'Error deleting post: {str(e)}'
+                'message': f'Error deleting post: {str(e)}',
+                'post': None,
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Error deleting post: {str(e)}',
+                'post': None,
             }
 
     def get_posts_by_user(self, user_id: int, page: int = 1, limit: int = 10,

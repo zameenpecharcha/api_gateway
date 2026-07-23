@@ -135,6 +135,104 @@ class UserRating:
     is_anonymous: typing.Optional[bool] = False
     created_at: str
     updated_at: str
+    rater_first_name: typing.Optional[str] = None
+    rater_last_name: typing.Optional[str] = None
+    rater_profile_photo: typing.Optional[str] = None
+    rater_profile_photo_signed_url: typing.Optional[str] = None
+
+
+def _resolve_rater_profile(user_id: int, token: typing.Optional[str]) -> typing.Dict[str, typing.Optional[str]]:
+    empty = {
+        "first_name": "",
+        "last_name": "",
+        "profile_photo": None,
+        "profile_photo_signed_url": None,
+    }
+    try:
+        u = user_service_client.get_user(int(user_id), token=token)
+    except Exception as e:
+        log_msg("warning", f"rater profile lookup failed user_id={user_id}: {e}")
+        return empty
+
+    first_name = getattr(u, "first_name", None) or ""
+    last_name = getattr(u, "last_name", None) or ""
+    photo = getattr(u, "profile_photo", None) or None
+    if (not photo) and getattr(u, "profile_photo_id", 0):
+        try:
+            media = user_service_client.get_media(
+                media_id=int(u.profile_photo_id), token=token
+            )
+            photo = getattr(media, "media_url", None) or None
+        except Exception as e:
+            log_msg("warning", f"rater media lookup failed user_id={user_id}: {e}")
+            photo = None
+
+    signed = None
+    if photo:
+        try:
+            signed = generate_presigned_get_url_from_url(photo)
+        except Exception as e:
+            log_msg("warning", f"rater photo sign failed user_id={user_id}: {e}")
+            signed = None
+
+    return {
+        "first_name": first_name,
+        "last_name": last_name,
+        "profile_photo": photo,
+        "profile_photo_signed_url": signed or photo,
+    }
+
+
+def _enrich_ratings_with_raters(
+    ratings: typing.List[UserRating],
+    token: typing.Optional[str],
+) -> typing.List[UserRating]:
+    """Batch-resolve rater names/photos once per unique rated_by user."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    unique_ids = sorted({int(r.rated_by_user_id) for r in ratings if r.rated_by_user_id})
+    if not unique_ids:
+        return ratings
+
+    profiles: typing.Dict[int, typing.Dict[str, typing.Optional[str]]] = {}
+    workers = min(8, len(unique_ids))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = {pool.submit(_resolve_rater_profile, uid, token): uid for uid in unique_ids}
+        for fut in as_completed(futures):
+            uid = futures[fut]
+            try:
+                profiles[uid] = fut.result()
+            except Exception as e:
+                log_msg("warning", f"rater batch resolve failed user_id={uid}: {e}")
+                profiles[uid] = {
+                    "first_name": "",
+                    "last_name": "",
+                    "profile_photo": None,
+                    "profile_photo_signed_url": None,
+                }
+
+    enriched: typing.List[UserRating] = []
+    for r in ratings:
+        p = profiles.get(int(r.rated_by_user_id)) or {}
+        enriched.append(
+            UserRating(
+                id=r.id,
+                rated_user_id=r.rated_user_id,
+                rated_by_user_id=r.rated_by_user_id,
+                rating_value=r.rating_value,
+                title=r.title,
+                review=r.review,
+                rating_type=r.rating_type,
+                is_anonymous=r.is_anonymous,
+                created_at=r.created_at,
+                updated_at=r.updated_at,
+                rater_first_name=p.get("first_name") or None,
+                rater_last_name=p.get("last_name") or None,
+                rater_profile_photo=p.get("profile_photo"),
+                rater_profile_photo_signed_url=p.get("profile_photo_signed_url"),
+            )
+        )
+    return enriched
 
 @strawberry.type
 class PresignUploadResponse:
@@ -274,6 +372,7 @@ class Query:
                     updated_at=rating.updated_at
                 ) for rating in ratings_response.ratings
             ]
+            ratings = _enrich_ratings_with_raters(ratings, token)
 
             # Get followers/following count
             followers = user_service_client.get_user_followers(id,token=token)
@@ -320,7 +419,7 @@ class Query:
             log_msg("info", f"Fetching ratings for user {user_id}")
             token = get_token(info)
             response = user_service_client.get_user_ratings(user_id,token=token)
-            return [
+            ratings = [
                 UserRating(
                     id=rating.id,
                     rated_user_id=rating.rated_user_id,
@@ -329,9 +428,10 @@ class Query:
                     review=rating.review,
                     rating_type=rating.rating_type,
                     created_at=rating.created_at,
-                    updated_at=rating.updated_at
+                    updated_at=rating.updated_at,
                 ) for rating in response.ratings
             ]
+            return _enrich_ratings_with_raters(ratings, token)
         except Exception as e:
             log_msg("error", f"Error fetching user ratings: {str(e)}")
             raise REException(
@@ -660,7 +760,7 @@ class Mutation:
                 is_anonymous=is_anonymous,
                 token=token
             )
-            return UserRating(
+            rating = UserRating(
                 id=response.id,
                 rated_user_id=response.rated_user_id,
                 rated_by_user_id=response.rated_by_user_id,
@@ -670,6 +770,7 @@ class Mutation:
                 created_at=response.created_at,
                 updated_at=response.updated_at
             )
+            return _enrich_ratings_with_raters([rating], token)[0]
         except Exception as e:
             log_msg("error", f"Error creating rating: {str(e)}")
             raise REException(
