@@ -108,6 +108,7 @@ class ChatMessage:
     media_url: str
     reply_to_message_id: str
     is_deleted: bool
+    edited_at: BigInt = 0  # Unix ms; 0 = never edited
     event_type: int
     status: int             # 0=SENDING 1=SENT 2=DELIVERED 3=READ
 
@@ -302,6 +303,7 @@ class Query:
                     media_url=m.media_url,
                     reply_to_message_id=m.reply_to_message_id,
                     is_deleted=m.is_deleted,
+                    edited_at=getattr(m, "edited_at_unix_ms", 0) or 0,
                     event_type=m.event_type,
                     status=m.status,
                 )
