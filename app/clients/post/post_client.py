@@ -486,6 +486,7 @@ class PostsServiceClient(GRPCBaseClient):
                     'status': response.comment.status,
                     'addedAt': datetime.fromtimestamp(response.comment.added_at),
                     'commentedAt': datetime.fromtimestamp(response.comment.commented_at),
+                    'editedAt': datetime.fromtimestamp(response.comment.edited_at) if getattr(response.comment, 'edited_at', 0) else None,
                     'replies': [],  # Replies will be fetched separately if needed
                     'likeCount': response.comment.like_count
                 }
@@ -522,11 +523,15 @@ class PostsServiceClient(GRPCBaseClient):
                     'id': c.id,
                     'postId': c.post_id,
                     'userId': c.user_id,
+                    'userFirstName': getattr(c, 'user_first_name', ''),
+                    'userLastName': getattr(c, 'user_last_name', ''),
+                    'userRole': getattr(c, 'user_role', ''),
                     'comment': c.comment,
                     'parentCommentId': c.parent_comment_id if c.parent_comment_id != 0 else None,
                     'status': c.status,
                     'addedAt': datetime.fromtimestamp(c.added_at),
                     'commentedAt': datetime.fromtimestamp(c.commented_at),
+                    'editedAt': datetime.fromtimestamp(c.edited_at) if getattr(c, 'edited_at', 0) else None,
                     'replies': [],
                     'likeCount': c.like_count
                 }
@@ -561,12 +566,12 @@ class PostsServiceClient(GRPCBaseClient):
                 'comment': None
             }
 
-    def like_comment(self, comment_id: int, user_id: int,token=None) -> dict:
+    def like_comment(self, comment_id: int, user_id: int, reaction_type: str = 'like', token=None) -> dict:
         try:
             request = post_pb2.CommentLikeRequest(
                 comment_id=comment_id,
                 user_id=user_id,
-                reaction_type='like'
+                reaction_type=reaction_type or 'like'
             )
             response = self._call(self.stub.LikeComment, request,token=token)
 
@@ -581,6 +586,7 @@ class PostsServiceClient(GRPCBaseClient):
                     'status': response.comment.status,
                     'addedAt': datetime.fromtimestamp(response.comment.added_at),
                     'commentedAt': datetime.fromtimestamp(response.comment.commented_at),
+                    'editedAt': datetime.fromtimestamp(response.comment.edited_at) if getattr(response.comment, 'edited_at', 0) else None,
                     'replies': [],  # Replies will be fetched separately if needed
                     'likeCount': response.comment.like_count
                 }

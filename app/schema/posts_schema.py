@@ -268,6 +268,7 @@ class Comment:
     likeCount: int
     profilePhoto: Optional[str] = None
     profilePhotoSignedUrl: Optional[str] = None
+    editedAt: Optional[datetime] = None
 
     @classmethod
     def from_dict(cls, data: dict):
@@ -289,6 +290,7 @@ class Comment:
             likeCount=data['likeCount'],
             profilePhoto=data.get('profilePhoto'),
             profilePhotoSignedUrl=data.get('profilePhotoSignedUrl'),
+            editedAt=data.get('editedAt'),
         )
 
 
@@ -549,6 +551,7 @@ class Query:
                 'status': comment.status,
                 'addedAt': datetime.fromtimestamp(comment.added_at),
                 'commentedAt': datetime.fromtimestamp(comment.commented_at),
+                'editedAt': datetime.fromtimestamp(comment.edited_at) if getattr(comment, 'edited_at', 0) else None,
                 'replies': [
                     {
                         'id': r.id,
@@ -562,6 +565,7 @@ class Query:
                         'status': r.status,
                         'addedAt': datetime.fromtimestamp(r.added_at),
                         'commentedAt': datetime.fromtimestamp(r.commented_at),
+                        'editedAt': datetime.fromtimestamp(r.edited_at) if getattr(r, 'edited_at', 0) else None,
                         'replies': [],
                         'likeCount': r.like_count
                     } for r in comment.replies
@@ -766,13 +770,15 @@ class Mutation:
     def likeComment(
         self, info: Info,
         commentId: int,
-        userId: int
+        userId: int,
+        reactionType: Optional[str] = "like",
     ) -> CommentResponse:
         logger.debug(f"Mutation.likeComment called with commentId: {commentId}, userId: {userId}")
         token = get_token(info)
         result = post_service_client.like_comment(
             comment_id=commentId,
             user_id=userId,
+            reaction_type=reactionType or "like",
             token=token
         )
         return CommentResponse.from_dict(result)
