@@ -3,9 +3,9 @@
 import grpc
 import warnings
 
-from app.proto_files.user import user_pb2 as user__pb2
+from . import user_pb2 as user__pb2
 
-GRPC_GENERATED_VERSION = '1.73.1'
+GRPC_GENERATED_VERSION = '1.83.0'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
@@ -18,14 +18,14 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + f' but the generated code in user_pb2_grpc.py depends on'
+        + ' but the generated code in user_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
     )
 
 
-class UserServiceStub(object):
+class UserServiceStub:
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -131,7 +131,7 @@ class UserServiceStub(object):
                 _registered_method=True)
 
 
-class UserServiceServicer(object):
+class UserServiceServicer:
     """Missing associated documentation comment in .proto file."""
 
     def GetUser(self, request, context):
@@ -355,7 +355,7 @@ def add_UserServiceServicer_to_server(servicer, server):
 
 
  # This class is part of an EXPERIMENTAL API.
-class UserService(object):
+class UserService:
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod

@@ -18,6 +18,56 @@ class AuthServiceClient(GRPCBaseClient):
         )
         return self._call(self.stub.Login, request, require_token=False)
 
+    def google_sign_in(
+        self,
+        id_token: str,
+        role: str = None,
+        address: str = None,
+        latitude: float = None,
+        longitude: float = None,
+        bio: str = None,
+        phone: str = None,
+    ):
+        request = auth_pb2.GoogleSignInRequest(
+            id_token=id_token,
+            role=role or "",
+            address=address or "",
+            latitude=latitude or 0.0,
+            longitude=longitude or 0.0,
+            bio=bio or "",
+            phone=phone or "",
+        )
+        return self._call(self.stub.GoogleSignIn, request, require_token=False)
+
+    def facebook_sign_in(
+        self,
+        access_token: str,
+        role: str = None,
+        address: str = None,
+        latitude: float = None,
+        longitude: float = None,
+        bio: str = None,
+        phone: str = None,
+    ):
+        request = auth_pb2.FacebookSignInRequest(
+            access_token=access_token,
+            role=role or "",
+            address=address or "",
+            latitude=latitude or 0.0,
+            longitude=longitude or 0.0,
+            bio=bio or "",
+            phone=phone or "",
+        )
+        return self._call(self.stub.FacebookSignIn, request, require_token=False)
+
+    def send_mobile_otp(self, phone: str):
+        request = auth_pb2.MobileOTPRequest(phone=phone)
+        return self._call(self.stub.SendMobileOTP, request, require_token=False)
+
+    def verify_mobile_otp(self, phone: str, otp_code: str):
+        request = auth_pb2.VerifyMobileOTPRequest(phone=phone, otp_code=otp_code)
+        return self._call(self.stub.VerifyMobileOTP, request, require_token=False)
+
     def logout(self, token: str, refresh_token: str = None):
         request = auth_pb2.LogoutRequest(
             token=token,

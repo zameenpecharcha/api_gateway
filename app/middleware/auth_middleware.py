@@ -12,6 +12,10 @@ from app.utils.log_utils import log_msg
 # Add any operation here to bypass the auth middleware
 PUBLIC_GRAPHQL_OPS = {
     "login",
+    "googlesignin",
+    "facebooksignin",
+    "sendmobileotp",
+    "verifymobileotp",
     "sendotp",
     "verifyotp",
     "forgotpassword",
