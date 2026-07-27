@@ -5,7 +5,7 @@ import warnings
 
 from . import auth_pb2 as auth__pb2
 
-GRPC_GENERATED_VERSION = '1.73.1'
+GRPC_GENERATED_VERSION = '1.83.0'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
@@ -18,14 +18,14 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + f' but the generated code in auth_pb2_grpc.py depends on'
+        + ' but the generated code in auth_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
     )
 
 
-class AuthServiceStub(object):
+class AuthServiceStub:
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -37,6 +37,26 @@ class AuthServiceStub(object):
         self.Login = channel.unary_unary(
                 '/auth.AuthService/Login',
                 request_serializer=auth__pb2.LoginRequest.SerializeToString,
+                response_deserializer=auth__pb2.LoginResponse.FromString,
+                _registered_method=True)
+        self.GoogleSignIn = channel.unary_unary(
+                '/auth.AuthService/GoogleSignIn',
+                request_serializer=auth__pb2.GoogleSignInRequest.SerializeToString,
+                response_deserializer=auth__pb2.LoginResponse.FromString,
+                _registered_method=True)
+        self.FacebookSignIn = channel.unary_unary(
+                '/auth.AuthService/FacebookSignIn',
+                request_serializer=auth__pb2.FacebookSignInRequest.SerializeToString,
+                response_deserializer=auth__pb2.LoginResponse.FromString,
+                _registered_method=True)
+        self.SendMobileOTP = channel.unary_unary(
+                '/auth.AuthService/SendMobileOTP',
+                request_serializer=auth__pb2.MobileOTPRequest.SerializeToString,
+                response_deserializer=auth__pb2.OTPResponse.FromString,
+                _registered_method=True)
+        self.VerifyMobileOTP = channel.unary_unary(
+                '/auth.AuthService/VerifyMobileOTP',
+                request_serializer=auth__pb2.VerifyMobileOTPRequest.SerializeToString,
                 response_deserializer=auth__pb2.LoginResponse.FromString,
                 _registered_method=True)
         self.Logout = channel.unary_unary(
@@ -71,10 +91,34 @@ class AuthServiceStub(object):
                 _registered_method=True)
 
 
-class AuthServiceServicer(object):
+class AuthServiceServicer:
     """Missing associated documentation comment in .proto file."""
 
     def Login(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GoogleSignIn(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def FacebookSignIn(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SendMobileOTP(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def VerifyMobileOTP(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -124,6 +168,26 @@ def add_AuthServiceServicer_to_server(servicer, server):
                     request_deserializer=auth__pb2.LoginRequest.FromString,
                     response_serializer=auth__pb2.LoginResponse.SerializeToString,
             ),
+            'GoogleSignIn': grpc.unary_unary_rpc_method_handler(
+                    servicer.GoogleSignIn,
+                    request_deserializer=auth__pb2.GoogleSignInRequest.FromString,
+                    response_serializer=auth__pb2.LoginResponse.SerializeToString,
+            ),
+            'FacebookSignIn': grpc.unary_unary_rpc_method_handler(
+                    servicer.FacebookSignIn,
+                    request_deserializer=auth__pb2.FacebookSignInRequest.FromString,
+                    response_serializer=auth__pb2.LoginResponse.SerializeToString,
+            ),
+            'SendMobileOTP': grpc.unary_unary_rpc_method_handler(
+                    servicer.SendMobileOTP,
+                    request_deserializer=auth__pb2.MobileOTPRequest.FromString,
+                    response_serializer=auth__pb2.OTPResponse.SerializeToString,
+            ),
+            'VerifyMobileOTP': grpc.unary_unary_rpc_method_handler(
+                    servicer.VerifyMobileOTP,
+                    request_deserializer=auth__pb2.VerifyMobileOTPRequest.FromString,
+                    response_serializer=auth__pb2.LoginResponse.SerializeToString,
+            ),
             'Logout': grpc.unary_unary_rpc_method_handler(
                     servicer.Logout,
                     request_deserializer=auth__pb2.LogoutRequest.FromString,
@@ -162,7 +226,7 @@ def add_AuthServiceServicer_to_server(servicer, server):
 
 
  # This class is part of an EXPERIMENTAL API.
-class AuthService(object):
+class AuthService:
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
@@ -181,6 +245,114 @@ class AuthService(object):
             target,
             '/auth.AuthService/Login',
             auth__pb2.LoginRequest.SerializeToString,
+            auth__pb2.LoginResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GoogleSignIn(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/auth.AuthService/GoogleSignIn',
+            auth__pb2.GoogleSignInRequest.SerializeToString,
+            auth__pb2.LoginResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def FacebookSignIn(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/auth.AuthService/FacebookSignIn',
+            auth__pb2.FacebookSignInRequest.SerializeToString,
+            auth__pb2.LoginResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SendMobileOTP(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/auth.AuthService/SendMobileOTP',
+            auth__pb2.MobileOTPRequest.SerializeToString,
+            auth__pb2.OTPResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def VerifyMobileOTP(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/auth.AuthService/VerifyMobileOTP',
+            auth__pb2.VerifyMobileOTPRequest.SerializeToString,
             auth__pb2.LoginResponse.FromString,
             options,
             channel_credentials,

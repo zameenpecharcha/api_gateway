@@ -4,6 +4,10 @@ package auth;
 
 service AuthService {
   rpc Login(LoginRequest) returns (LoginResponse);
+  rpc GoogleSignIn(GoogleSignInRequest) returns (LoginResponse);
+  rpc FacebookSignIn(FacebookSignInRequest) returns (LoginResponse);
+  rpc SendMobileOTP(MobileOTPRequest) returns (OTPResponse);
+  rpc VerifyMobileOTP(VerifyMobileOTPRequest) returns (LoginResponse);
   rpc Logout(LogoutRequest) returns (LogoutResponse);
   rpc SendOTP(OTPRequest) returns (OTPResponse);
   rpc VerifyOTP(VerifyOTPRequest) returns (VerifyOTPResponse);
@@ -15,6 +19,35 @@ service AuthService {
 message LoginRequest {
   string email = 1;
   string password = 2;
+}
+
+message GoogleSignInRequest {
+  string id_token = 1;
+  string role = 2;
+  string address = 3;
+  float latitude = 4;
+  float longitude = 5;
+  string bio = 6;
+  string phone = 7;
+}
+
+message FacebookSignInRequest {
+  string access_token = 1;
+  string role = 2;
+  string address = 3;
+  float latitude = 4;
+  float longitude = 5;
+  string bio = 6;
+  string phone = 7;
+}
+
+message MobileOTPRequest {
+  string phone = 1;
+}
+
+message VerifyMobileOTPRequest {
+  string phone = 1;
+  string otp_code = 2;
 }
 
 message LoginResponse {

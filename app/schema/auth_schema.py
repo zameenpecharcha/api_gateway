@@ -85,6 +85,174 @@ class Mutation:
             return AuthResponse(success=False, message="Internal server error")
 
     @strawberry.mutation
+    async def google_sign_in(
+        self,
+        id_token: str,
+        role: typing.Optional[str] = None,
+        address: typing.Optional[str] = None,
+        latitude: typing.Optional[float] = None,
+        longitude: typing.Optional[float] = None,
+        bio: typing.Optional[str] = None,
+        phone: typing.Optional[str] = None,
+    ) -> AuthResponse:
+        try:
+            response = auth_service_client.google_sign_in(
+                id_token=id_token,
+                role=role,
+                address=address,
+                latitude=latitude,
+                longitude=longitude,
+                bio=bio,
+                phone=phone,
+            )
+            return AuthResponse(
+                success=True,
+                token=response.token,
+                refresh_token=response.refresh_token,
+                message="Google sign-in successful",
+                user_info=UserInfo(
+                    id=response.user_info.id,
+                    first_name=response.user_info.first_name,
+                    last_name=response.user_info.last_name,
+                    email=response.user_info.email,
+                    phone=response.user_info.phone,
+                    profile_photo=response.user_info.profile_photo,
+                    role=response.user_info.role,
+                    address=response.user_info.address,
+                    latitude=response.user_info.latitude,
+                    longitude=response.user_info.longitude,
+                    bio=response.user_info.bio,
+                    isactive=response.user_info.isactive,
+                    email_verified=response.user_info.email_verified,
+                    phone_verified=response.user_info.phone_verified,
+                    created_at=response.user_info.created_at
+                ) if response.user_info else None
+            )
+        except grpc.RpcError as e:
+            log_msg("error", f"Google sign-in error: {str(e)}")
+            if e.code() == grpc.StatusCode.NOT_FOUND:
+                return AuthResponse(success=False, message="Google account not registered. Please sign up first.")
+            if e.code() == grpc.StatusCode.INVALID_ARGUMENT:
+                return AuthResponse(success=False, message=e.details() or "Missing Google signup details")
+            if e.code() == grpc.StatusCode.PERMISSION_DENIED:
+                return AuthResponse(success=False, message="Account is inactive")
+            if e.code() == grpc.StatusCode.UNAUTHENTICATED:
+                return AuthResponse(success=False, message=e.details() or "Invalid Google account")
+            return AuthResponse(success=False, message="Google sign-in failed")
+
+    @strawberry.mutation
+    async def facebook_sign_in(
+        self,
+        access_token: str,
+        role: typing.Optional[str] = None,
+        address: typing.Optional[str] = None,
+        latitude: typing.Optional[float] = None,
+        longitude: typing.Optional[float] = None,
+        bio: typing.Optional[str] = None,
+        phone: typing.Optional[str] = None,
+    ) -> AuthResponse:
+        try:
+            response = auth_service_client.facebook_sign_in(
+                access_token=access_token,
+                role=role,
+                address=address,
+                latitude=latitude,
+                longitude=longitude,
+                bio=bio,
+                phone=phone,
+            )
+            return AuthResponse(
+                success=True,
+                token=response.token,
+                refresh_token=response.refresh_token,
+                message="Facebook sign-in successful",
+                user_info=UserInfo(
+                    id=response.user_info.id,
+                    first_name=response.user_info.first_name,
+                    last_name=response.user_info.last_name,
+                    email=response.user_info.email,
+                    phone=response.user_info.phone,
+                    profile_photo=response.user_info.profile_photo,
+                    role=response.user_info.role,
+                    address=response.user_info.address,
+                    latitude=response.user_info.latitude,
+                    longitude=response.user_info.longitude,
+                    bio=response.user_info.bio,
+                    isactive=response.user_info.isactive,
+                    email_verified=response.user_info.email_verified,
+                    phone_verified=response.user_info.phone_verified,
+                    created_at=response.user_info.created_at
+                ) if response.user_info else None
+            )
+        except grpc.RpcError as e:
+            log_msg("error", f"Facebook sign-in error: {str(e)}")
+            if e.code() == grpc.StatusCode.NOT_FOUND:
+                return AuthResponse(success=False, message="Facebook account not registered. Please sign up first.")
+            if e.code() == grpc.StatusCode.INVALID_ARGUMENT:
+                return AuthResponse(success=False, message=e.details() or "Missing Facebook signup details")
+            if e.code() == grpc.StatusCode.PERMISSION_DENIED:
+                return AuthResponse(success=False, message="Account is inactive")
+            if e.code() == grpc.StatusCode.UNAUTHENTICATED:
+                return AuthResponse(success=False, message=e.details() or "Invalid Facebook account")
+            return AuthResponse(success=False, message="Facebook sign-in failed")
+
+    @strawberry.mutation
+    async def send_mobile_otp(self, phone: str) -> AuthResponse:
+        try:
+            response = auth_service_client.send_mobile_otp(phone)
+            return AuthResponse(
+                success=response.success,
+                message=response.message,
+                channels=response.channels
+            )
+        except grpc.RpcError as e:
+            log_msg("error", f"SendMobileOTP error for {phone}: {str(e)}")
+            if e.code() == grpc.StatusCode.NOT_FOUND:
+                return AuthResponse(success=False, message="Phone number not registered")
+            if e.code() == grpc.StatusCode.PERMISSION_DENIED:
+                return AuthResponse(success=False, message="Account is inactive")
+            if e.code() == grpc.StatusCode.INVALID_ARGUMENT:
+                return AuthResponse(success=False, message=e.details() or "Phone number is required")
+            return AuthResponse(success=False, message="Failed to send mobile OTP")
+
+    @strawberry.mutation
+    async def verify_mobile_otp(self, phone: str, otp_code: str) -> AuthResponse:
+        try:
+            response = auth_service_client.verify_mobile_otp(phone, otp_code)
+            return AuthResponse(
+                success=True,
+                token=response.token,
+                refresh_token=response.refresh_token,
+                message="Mobile sign-in successful",
+                user_info=UserInfo(
+                    id=response.user_info.id,
+                    first_name=response.user_info.first_name,
+                    last_name=response.user_info.last_name,
+                    email=response.user_info.email,
+                    phone=response.user_info.phone,
+                    profile_photo=response.user_info.profile_photo,
+                    role=response.user_info.role,
+                    address=response.user_info.address,
+                    latitude=response.user_info.latitude,
+                    longitude=response.user_info.longitude,
+                    bio=response.user_info.bio,
+                    isactive=response.user_info.isactive,
+                    email_verified=response.user_info.email_verified,
+                    phone_verified=response.user_info.phone_verified,
+                    created_at=response.user_info.created_at
+                ) if response.user_info else None
+            )
+        except grpc.RpcError as e:
+            log_msg("error", f"VerifyMobileOTP error for {phone}: {str(e)}")
+            if e.code() == grpc.StatusCode.NOT_FOUND:
+                return AuthResponse(success=False, message=e.details() or "OTP expired or phone number not registered")
+            if e.code() == grpc.StatusCode.INVALID_ARGUMENT:
+                return AuthResponse(success=False, message=e.details() or "Invalid OTP")
+            if e.code() == grpc.StatusCode.PERMISSION_DENIED:
+                return AuthResponse(success=False, message="Account is inactive")
+            return AuthResponse(success=False, message="Failed to verify mobile OTP")
+
+    @strawberry.mutation
     async def send_otp(
         self, 
         email: str, 
