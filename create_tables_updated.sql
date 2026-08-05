@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS "user".users (
     last_name           VARCHAR(100),
     email               VARCHAR(255)    NOT NULL,
     phone               VARCHAR(30),
-    role                VARCHAR(30),
+    role                VARCHAR(30)     NOT NULL DEFAULT 'USER',
     bio                 TEXT,
     profile_photo_id    UUID,
     cover_photo_id      UUID,
@@ -79,10 +79,13 @@ CREATE TABLE IF NOT EXISTS "user".users (
     CONSTRAINT users_post_count_non_negative CHECK (post_count >= 0),
     CONSTRAINT users_property_count_non_negative CHECK (property_count >= 0),
     CONSTRAINT users_review_count_non_negative CHECK (review_count >= 0),
-    CONSTRAINT users_report_count_non_negative CHECK (report_count >= 0)
+    CONSTRAINT users_report_count_non_negative CHECK (report_count >= 0),
+    CONSTRAINT users_role_valid
+        CHECK (role IN ('USER', 'BUILDER', 'AGENT', 'ADMIN', 'LAWYER', 'INVESTOR'))
 );
 
 COMMENT ON TABLE "user".users IS 'User profiles and denormalized counters; owned by user_service.';
+COMMENT ON COLUMN "user".users.role IS 'User role: USER, BUILDER, AGENT, ADMIN, LAWYER, INVESTOR.';
 COMMENT ON COLUMN "user".users.profile_photo_id IS 'FK → api_gateway.media(id).';
 COMMENT ON COLUMN "user".users.cover_photo_id IS 'FK → api_gateway.media(id).';
 COMMENT ON COLUMN "user".users.deleted_at IS 'Soft-delete timestamp; NULL means active.';
