@@ -10,4 +10,5 @@ PyJWT[crypto]
 cryptography
 httpx
 truststore
+certifi
 boto3

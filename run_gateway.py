@@ -5,6 +5,10 @@ from dotenv import load_dotenv
 # Must be called before service-module imports that read os.getenv at module level
 load_dotenv()
 
+import truststore
+
+truststore.inject_into_ssl()
+
 import strawberry
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
