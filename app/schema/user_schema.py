@@ -105,7 +105,7 @@ class User:
             token = get_token(info)
             candidate: typing.Optional[str] = getattr(self, "profile_photo", None)
             if (not candidate) and getattr(self, "profile_photo_id", 0):
-                media = user_service_client.get_media(media_id=int(self.profile_photo_id), token=token)
+                media = user_service_client.get_media(media_id=str(self.profile_photo_id), token=token)
                 candidate = getattr(media, "file_url", None) or getattr(media, "media_url", None)
             return candidate
         except Exception:
@@ -513,7 +513,7 @@ class Query:
             ).to_graphql_error()
 
     @strawberry.field
-    def media(self, info: Info, mediaId: int) -> typing.Optional[Media]:
+    def media(self, info: Info, mediaId: str) -> typing.Optional[Media]:
         try:
             token = get_token(info)
             response = user_service_client.get_media(media_id=mediaId, token=token)
@@ -568,7 +568,7 @@ class Query:
             return []
 
     @strawberry.field
-    def suggestedUsers(self, info: Info, userId: int, limit: int = 10) -> typing.List[User]:
+    def suggestedUsers(self, info: Info, userId: str, limit: int = 10) -> typing.List[User]:
         try:
             token = get_token(info)
             response = user_service_client.get_suggested_users(user_id=userId, limit=limit, token=token)
@@ -581,7 +581,7 @@ class Query:
     def userNotifications(
         self,
         info: Info,
-        userId: int,
+        userId: str,
         page: int = 1,
         limit: int = 20,
     ) -> NotificationsPage:
@@ -746,7 +746,7 @@ class Mutation:
     async def updateProfilePhoto(
         self,
         info: Info,
-        userId: int,
+        userId: str,
         filePath: str,
         fileName: typing.Optional[str] = None,
         contentType: typing.Optional[str] = None,
@@ -787,7 +787,7 @@ class Mutation:
     async def updateCoverPhoto(
         self,
         info: Info,
-        userId: int,
+        userId: str,
         filePath: str,
         fileName: typing.Optional[str] = None,
         contentType: typing.Optional[str] = None,
@@ -866,7 +866,7 @@ class Mutation:
             # Authorization: only the target user (following_id) can change status
             request = info.context["request"]
             actor = getattr(request.state, "user", None)
-            if not actor or int(actor.get("id")) != int(following_id):
+            if not actor or str(actor.get("id")) != str(following_id):
                 raise REException("FORBIDDEN", "Only the target user can update follow status", "Not allowed").to_graphql_error()
 
             token = get_token(info)
@@ -926,8 +926,8 @@ class Mutation:
     async def markNotificationRead(
         self,
         info: Info,
-        notificationId: int,
-        userId: int,
+        notificationId: str,
+        userId: str,
     ) -> Notification:
         try:
             token = get_token(info)
@@ -958,7 +958,7 @@ class Mutation:
     async def createNotification(
         self,
         info: Info,
-        userId: int,
+        userId: str,
         title: str,
         message: str,
         type: str = "",
