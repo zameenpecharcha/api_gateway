@@ -173,17 +173,18 @@ def _rating_from_proto(rating) -> UserRating:
     )
 
 
-def _resolve_rater_profile(user_id: str, token: typing.Optional[str]) -> typing.Dict[str, typing.Optional[str]]:
+def _resolve_user_profile(user_id: str, token: typing.Optional[str]) -> typing.Dict[str, typing.Optional[str]]:
     empty = {
         "first_name": "",
         "last_name": "",
+        "role": None,
         "profile_photo": None,
         "profile_photo_signed_url": None,
     }
     try:
         u = user_service_client.get_user(str(user_id), token=token)
     except Exception as e:
-        log_msg("warning", f"rater profile lookup failed user_id={user_id}: {e}")
+        log_msg("warning", f"user profile lookup failed user_id={user_id}: {e}")
         return empty
 
     first_name = getattr(u, "first_name", None) or ""
@@ -196,7 +197,7 @@ def _resolve_rater_profile(user_id: str, token: typing.Optional[str]) -> typing.
             )
             photo = getattr(media, "media_url", None) or None
         except Exception as e:
-            log_msg("warning", f"rater media lookup failed user_id={user_id}: {e}")
+            log_msg("warning", f"user media lookup failed user_id={user_id}: {e}")
             photo = None
 
     signed = None
@@ -204,14 +205,25 @@ def _resolve_rater_profile(user_id: str, token: typing.Optional[str]) -> typing.
         try:
             signed = generate_presigned_get_url_from_url(photo)
         except Exception as e:
-            log_msg("warning", f"rater photo sign failed user_id={user_id}: {e}")
+            log_msg("warning", f"user photo sign failed user_id={user_id}: {e}")
             signed = None
 
     return {
         "first_name": first_name,
         "last_name": last_name,
+        "role": getattr(u, "role", None) or None,
         "profile_photo": photo,
         "profile_photo_signed_url": signed or photo,
+    }
+
+
+def _resolve_rater_profile(user_id: str, token: typing.Optional[str]) -> typing.Dict[str, typing.Optional[str]]:
+    p = _resolve_user_profile(user_id, token)
+    return {
+        "first_name": p["first_name"],
+        "last_name": p["last_name"],
+        "profile_photo": p["profile_photo"],
+        "profile_photo_signed_url": p["profile_photo_signed_url"],
     }
 
 
@@ -280,9 +292,18 @@ class UserFollower:
     followee_type: typing.Optional[str] = None
     status: str
     followed_at: str
+    user_first_name: typing.Optional[str] = None
+    user_last_name: typing.Optional[str] = None
+    user_role: typing.Optional[str] = None
+    user_profile_photo: typing.Optional[str] = None
+    user_profile_photo_signed_url: typing.Optional[str] = None
 
 
-def _follow_from_proto(follow) -> UserFollower:
+def _follow_from_proto(
+    follow,
+    profile: typing.Optional[typing.Dict[str, typing.Optional[str]]] = None,
+) -> UserFollower:
+    p = profile or {}
     return UserFollower(
         id=str(follow.id),
         follower_id=str(follow.follower_id),
@@ -290,7 +311,70 @@ def _follow_from_proto(follow) -> UserFollower:
         followee_type=getattr(follow, "follow_type", None) or None,
         status=follow.status,
         followed_at=str(follow.followed_at),
+        user_first_name=p.get("first_name") or None,
+        user_last_name=p.get("last_name") or None,
+        user_role=p.get("role"),
+        user_profile_photo=p.get("profile_photo"),
+        user_profile_photo_signed_url=p.get("profile_photo_signed_url"),
     )
+
+
+def _enrich_follows_with_profiles(
+    follows: typing.List[UserFollower],
+    profile_user_id_attr: str,
+    token: typing.Optional[str],
+) -> typing.List[UserFollower]:
+    """Batch-resolve display names/photos for follower or following user IDs."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    unique_ids = sorted({
+        str(getattr(f, profile_user_id_attr))
+        for f in follows
+        if getattr(f, profile_user_id_attr, None)
+    })
+    if not unique_ids:
+        return follows
+
+    profiles: typing.Dict[str, typing.Dict[str, typing.Optional[str]]] = {}
+    workers = min(8, len(unique_ids))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = {
+            pool.submit(_resolve_user_profile, uid, token): uid for uid in unique_ids
+        }
+        for fut in as_completed(futures):
+            uid = futures[fut]
+            try:
+                profiles[uid] = fut.result()
+            except Exception as e:
+                log_msg("warning", f"follow profile batch resolve failed user_id={uid}: {e}")
+                profiles[uid] = {
+                    "first_name": "",
+                    "last_name": "",
+                    "role": None,
+                    "profile_photo": None,
+                    "profile_photo_signed_url": None,
+                }
+
+    enriched: typing.List[UserFollower] = []
+    for f in follows:
+        uid = str(getattr(f, profile_user_id_attr) or "")
+        p = profiles.get(uid) or {}
+        enriched.append(
+            UserFollower(
+                id=f.id,
+                follower_id=f.follower_id,
+                following_id=f.following_id,
+                followee_type=f.followee_type,
+                status=f.status,
+                followed_at=f.followed_at,
+                user_first_name=p.get("first_name") or None,
+                user_last_name=p.get("last_name") or None,
+                user_role=p.get("role"),
+                user_profile_photo=p.get("profile_photo"),
+                user_profile_photo_signed_url=p.get("profile_photo_signed_url"),
+            )
+        )
+    return enriched
 
 
 def _follow_from_status_response(
@@ -468,16 +552,11 @@ class Query:
             log_msg("info", f"Fetching followers for user {user_id}")
             token = get_token(info)
             response = user_service_client.get_user_followers(user_id, token=token)
-            return [
-                UserFollower(
-                    id=str(follower.id),
-                    follower_id=str(follower.follower_id),
-                    following_id=str(follower.following_id),
-                    followee_type=getattr(follower, "follow_type", None),
-                    status=follower.status,
-                    followed_at=str(follower.followed_at),
-                ) for follower in getattr(response, "follows", [])
+            follows = [
+                _follow_from_proto(follower)
+                for follower in getattr(response, "follows", [])
             ]
+            return _enrich_follows_with_profiles(follows, "follower_id", token)
         except Exception as e:
             log_msg("error", f"Error fetching user followers: {str(e)}")
             raise REException(
@@ -491,16 +570,8 @@ class Query:
         try:
             token = get_token(info)
             response = user_service_client.get_pending_follow_requests(user_id, token=token)
-            return [
-                UserFollower(
-                    id=str(f.id),
-                    follower_id=str(f.follower_id),
-                    following_id=str(f.following_id),
-                    followee_type=getattr(f, "follow_type", None),
-                    status=f.status,
-                    followed_at=str(f.followed_at),
-                ) for f in getattr(response, "follows", [])
-            ]
+            follows = [_follow_from_proto(f) for f in getattr(response, "follows", [])]
+            return _enrich_follows_with_profiles(follows, "follower_id", token)
         except Exception as e:
             raise REException(
                 "PENDING_REQUESTS_FAILED",
@@ -514,16 +585,11 @@ class Query:
             log_msg("info", f"Fetching following for user {user_id}")
             token = get_token(info)
             response = user_service_client.get_user_following(user_id, token=token)
-            return [
-                UserFollower(
-                    id=str(follow.id),
-                    follower_id=str(follow.follower_id),
-                    following_id=str(follow.following_id),
-                    followee_type=getattr(follow, "follow_type", None),
-                    status=follow.status,
-                    followed_at=str(follow.followed_at),
-                ) for follow in getattr(response, "follows", [])
+            follows = [
+                _follow_from_proto(follow)
+                for follow in getattr(response, "follows", [])
             ]
+            return _enrich_follows_with_profiles(follows, "following_id", token)
         except Exception as e:
             log_msg("error", f"Error fetching user following: {str(e)}")
             raise REException(
