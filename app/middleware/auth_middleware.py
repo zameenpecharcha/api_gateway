@@ -72,11 +72,9 @@ class AuthMiddleware:
 
             # Propagate user to downstream handlers
             request.state.user = {
-                "id": response.user_info.id,
-                "email": response.user_info.email,
-                "role": response.user_info.role,
-                "first_name": response.user_info.first_name,
-                "last_name": response.user_info.last_name,
+                "id": str(response.auth_user.user_id),
+                "email": response.auth_user.email,
+                "role": response.auth_user.role,
             }
             scope["state"] = request.state._state
 

@@ -18,7 +18,7 @@ from app.utils.s3_utils import generate_presigned_get_url_from_url
 
 @strawberry.type
 class User:
-    id: int
+    id: str
     first_name: str
     last_name: str
     email: str
@@ -36,8 +36,8 @@ class User:
     email_verified: bool
     phone_verified: bool
     created_at: str
-    cover_photo_id: typing.Optional[int] = 0
-    profile_photo_id: typing.Optional[int] = 0
+    cover_photo_id: typing.Optional[str] = None
+    profile_photo_id: typing.Optional[str] = None
     ratings: typing.List['UserRating'] = strawberry.field(default_factory=list)
     followers_count: int = 0
     following_count: int = 0
@@ -55,12 +55,12 @@ class User:
                 url = generate_presigned_get_url_from_url(candidate)
                 return url or candidate
 
-            if getattr(self, "profile_photo_id", 0):
+            if getattr(self, "profile_photo_id", None):
                 token = get_token(info)
                 media = user_service_client.get_media(
-                    media_id=int(self.profile_photo_id), token=token
+                    media_id=str(self.profile_photo_id), token=token
                 )
-                candidate = getattr(media, "media_url", None)
+                candidate = getattr(media, "file_url", None) or getattr(media, "media_url", None)
                 if candidate:
                     url = generate_presigned_get_url_from_url(candidate)
                     return url or candidate
@@ -75,9 +75,9 @@ class User:
             token = get_token(info)
 
             candidate: typing.Optional[str] = None
-            if getattr(self, "cover_photo_id", 0):
-                media = user_service_client.get_media(media_id=int(self.cover_photo_id), token=token)
-                candidate = getattr(media, "media_url", None)
+            if getattr(self, "cover_photo_id", None):
+                media = user_service_client.get_media(media_id=str(self.cover_photo_id), token=token)
+                candidate = getattr(media, "file_url", None) or getattr(media, "media_url", None)
 
             if not candidate:
                 return None
@@ -92,9 +92,9 @@ class User:
         try:
             token = get_token(info)
             candidate: typing.Optional[str] = None
-            if getattr(self, "cover_photo_id", 0):
-                media = user_service_client.get_media(media_id=int(self.cover_photo_id), token=token)
-                candidate = getattr(media, "media_url", None)
+            if getattr(self, "cover_photo_id", None):
+                media = user_service_client.get_media(media_id=str(self.cover_photo_id), token=token)
+                candidate = getattr(media, "file_url", None) or getattr(media, "media_url", None)
             return candidate
         except Exception:
             return None
@@ -106,15 +106,15 @@ class User:
             candidate: typing.Optional[str] = getattr(self, "profile_photo", None)
             if (not candidate) and getattr(self, "profile_photo_id", 0):
                 media = user_service_client.get_media(media_id=int(self.profile_photo_id), token=token)
-                candidate = getattr(media, "media_url", None)
+                candidate = getattr(media, "file_url", None) or getattr(media, "media_url", None)
             return candidate
         except Exception:
             return getattr(self, "profile_photo", None)
 
 @strawberry.type
 class Media:
-    id: int
-    context_id: int
+    id: str
+    context_id: str
     context_type: str
     media_type: str
     media_url: str
@@ -125,9 +125,9 @@ class Media:
 
 @strawberry.type
 class UserRating:
-    id: int
-    rated_user_id: int
-    rated_by_user_id: int
+    id: str
+    rated_user_id: str
+    rated_by_user_id: str
     rating_value: int
     title: typing.Optional[str] = None
     review: typing.Optional[str] = None
@@ -141,7 +141,7 @@ class UserRating:
     rater_profile_photo_signed_url: typing.Optional[str] = None
 
 
-def _resolve_rater_profile(user_id: int, token: typing.Optional[str]) -> typing.Dict[str, typing.Optional[str]]:
+def _resolve_rater_profile(user_id: str, token: typing.Optional[str]) -> typing.Dict[str, typing.Optional[str]]:
     empty = {
         "first_name": "",
         "last_name": "",
@@ -149,18 +149,18 @@ def _resolve_rater_profile(user_id: int, token: typing.Optional[str]) -> typing.
         "profile_photo_signed_url": None,
     }
     try:
-        u = user_service_client.get_user(int(user_id), token=token)
+        u = user_service_client.get_user(str(user_id), token=token)
     except Exception as e:
         log_msg("warning", f"rater profile lookup failed user_id={user_id}: {e}")
         return empty
 
     first_name = getattr(u, "first_name", None) or ""
     last_name = getattr(u, "last_name", None) or ""
-    photo = getattr(u, "profile_photo", None) or None
-    if (not photo) and getattr(u, "profile_photo_id", 0):
+    photo = getattr(u, "profile_photo_url", None) or getattr(u, "profile_photo", None) or None
+    if (not photo) and getattr(u, "profile_photo_id", None):
         try:
             media = user_service_client.get_media(
-                media_id=int(u.profile_photo_id), token=token
+                media_id=str(u.profile_photo_id), token=token
             )
             photo = getattr(media, "media_url", None) or None
         except Exception as e:
@@ -190,11 +190,11 @@ def _enrich_ratings_with_raters(
     """Batch-resolve rater names/photos once per unique rated_by user."""
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    unique_ids = sorted({int(r.rated_by_user_id) for r in ratings if r.rated_by_user_id})
+    unique_ids = sorted({str(r.rated_by_user_id) for r in ratings if r.rated_by_user_id})
     if not unique_ids:
         return ratings
 
-    profiles: typing.Dict[int, typing.Dict[str, typing.Optional[str]]] = {}
+    profiles: typing.Dict[str, typing.Dict[str, typing.Optional[str]]] = {}
     workers = min(8, len(unique_ids))
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = {pool.submit(_resolve_rater_profile, uid, token): uid for uid in unique_ids}
@@ -213,7 +213,7 @@ def _enrich_ratings_with_raters(
 
     enriched: typing.List[UserRating] = []
     for r in ratings:
-        p = profiles.get(int(r.rated_by_user_id)) or {}
+        p = profiles.get(str(r.rated_by_user_id)) or {}
         enriched.append(
             UserRating(
                 id=r.id,
@@ -242,9 +242,9 @@ class PresignUploadResponse:
 
 @strawberry.type
 class UserFollower:
-    id: int
-    follower_id: int
-    following_id: int
+    id: str
+    follower_id: str
+    following_id: str
     followee_type: typing.Optional[str] = None
     status: str
     followed_at: str
@@ -260,8 +260,8 @@ class OlaSuggestion:
 
 @strawberry.type
 class Notification:
-    id: int
-    user_id: int
+    id: str
+    user_id: str
     title: str
     message: str
     type: str
@@ -275,28 +275,33 @@ class NotificationsPage:
     total: int
 
 def _user_from_proto(u) -> User:
-    cover_photo = getattr(u, 'cover_photo', None) or None
+    stats = getattr(u, "statistics", None)
+    profile_url = getattr(u, "profile_photo_url", None) or getattr(u, "profile_photo", None) or None
+    cover_url = getattr(u, "cover_photo_url", None) or getattr(u, "cover_photo", None) or None
+    created = getattr(u, "created_at", None)
     return User(
-        id=u.id,
+        id=str(u.id),
         first_name=u.first_name,
         last_name=u.last_name,
         email=u.email,
         phone=u.phone,
-        profile_photo=u.profile_photo or None,
-        cover_photo=cover_photo,
-        profile_photo_signed_url=generate_presigned_get_url_from_url(u.profile_photo) if u.profile_photo else None,
-        cover_photo_signed_url=None,
+        profile_photo=profile_url,
+        cover_photo=cover_url,
+        profile_photo_signed_url=generate_presigned_get_url_from_url(profile_url) if profile_url else None,
+        cover_photo_signed_url=generate_presigned_get_url_from_url(cover_url) if cover_url else None,
         role=u.role or None,
-        address=u.address or None,
-        latitude=getattr(u, 'latitude', None) or None,
-        longitude=getattr(u, 'longitude', None) or None,
-        bio=getattr(u, 'bio', None) or None,
-        isactive=u.isActive,
+        address=None,
+        latitude=getattr(u, "latitude", None) or None,
+        longitude=getattr(u, "longitude", None) or None,
+        bio=getattr(u, "bio", None) or None,
+        isactive=getattr(u, "is_active", getattr(u, "isActive", True)),
         email_verified=u.email_verified,
         phone_verified=u.phone_verified,
-        created_at=u.created_at,
-        cover_photo_id=getattr(u, 'cover_photo_id', 0),
-        profile_photo_id=getattr(u, 'profile_photo_id', 0),
+        created_at=str(created) if created else "",
+        cover_photo_id=str(getattr(u, "cover_photo_id", "") or "") or None,
+        profile_photo_id=str(getattr(u, "profile_photo_id", "") or "") or None,
+        followers_count=int(getattr(stats, "follower_count", 0) or 0) if stats else 0,
+        following_count=int(getattr(stats, "following_count", 0) or 0) if stats else 0,
     )
 
 @strawberry.type
@@ -347,63 +352,36 @@ class Query:
         except Exception as e:
             raise REException("AUTOCOMPLETE_FAILED", "Autocomplete failed", str(e)).to_graphql_error()
     @strawberry.field
-    def user(self, info: Info, id: int) -> typing.Optional[User]:
+    def user(self, info: Info, id: str) -> typing.Optional[User]:
         try:
             log_msg("info", f"Fetching user with ID {id}")
             token = get_token(info)
             response = user_service_client.get_user(id, token=token)
 
-            if response is None:
+            if response is None or not getattr(response, "success", True):
                 raise REException("USER_NOT_FOUND", "User does not exist", "Invalid ID provided")
 
-            # Get user ratings
-            ratings_response = user_service_client.get_user_ratings(id,token=token)
+            ratings_response = user_service_client.get_user_ratings(id, token=token)
             ratings = [
                 UserRating(
-                    id=rating.id,
-                    rated_user_id=rating.rated_user_id,
-                    rated_by_user_id=rating.rated_by_user_id,
-                    rating_value=rating.rating_value,
-                    title=getattr(rating, 'title', None),
+                    id=str(rating.id),
+                    rated_user_id=str(rating.rated_user_id),
+                    rated_by_user_id=str(getattr(rating, "rated_by", "") or getattr(rating, "rated_by_user_id", "")),
+                    rating_value=int(rating.rating_value),
+                    title=getattr(rating, "title", None),
                     review=rating.review,
                     rating_type=rating.rating_type,
-                    is_anonymous=getattr(rating, 'is_anonymous', False),
-                    created_at=rating.created_at,
-                    updated_at=rating.updated_at
-                ) for rating in ratings_response.ratings
+                    is_anonymous=getattr(rating, "is_anonymous", False),
+                    created_at=str(rating.created_at),
+                    updated_at=str(rating.updated_at),
+                )
+                for rating in getattr(ratings_response, "ratings", [])
             ]
             ratings = _enrich_ratings_with_raters(ratings, token)
 
-            # Get followers/following count
-            followers = user_service_client.get_user_followers(id,token=token)
-            following = user_service_client.get_user_following(id,token=token)
-
-            cover_photo = getattr(response, 'cover_photo', None) or None
-            return User(
-                id=response.id,
-                first_name=response.first_name,
-                last_name=response.last_name,
-                email=response.email,
-                phone=response.phone,
-                profile_photo=response.profile_photo,
-                cover_photo=cover_photo,
-                profile_photo_signed_url=generate_presigned_get_url_from_url(response.profile_photo) if response.profile_photo else None,
-                cover_photo_signed_url=generate_presigned_get_url_from_url(cover_photo) if cover_photo else None,
-                role=response.role,
-                address=response.address,
-                latitude=response.latitude,
-                longitude=response.longitude,
-                bio=response.bio,
-                isactive=response.isActive,
-                email_verified=response.email_verified,
-                phone_verified=response.phone_verified,
-                created_at=response.created_at,
-                cover_photo_id=getattr(response, 'cover_photo_id', 0),
-                profile_photo_id=getattr(response, 'profile_photo_id', 0),
-                ratings=ratings,
-                followers_count=len(followers.followers),
-                following_count=len(following.followers)
-            )
+            user_obj = _user_from_proto(response)
+            user_obj.ratings = ratings
+            return user_obj
 
         except Exception as e:
             log_msg("error", f"Error fetching user: {str(e)}")
@@ -414,21 +392,21 @@ class Query:
             ).to_graphql_error()
 
     @strawberry.field
-    def user_ratings(self, info: Info, user_id: int) -> typing.List[UserRating]:
+    def user_ratings(self, info: Info, user_id: str) -> typing.List[UserRating]:
         try:
             log_msg("info", f"Fetching ratings for user {user_id}")
             token = get_token(info)
             response = user_service_client.get_user_ratings(user_id,token=token)
             ratings = [
                 UserRating(
-                    id=rating.id,
-                    rated_user_id=rating.rated_user_id,
-                    rated_by_user_id=rating.rated_by_user_id,
-                    rating_value=rating.rating_value,
+                    id=str(rating.id),
+                    rated_user_id=str(rating.rated_user_id),
+                    rated_by_user_id=str(getattr(rating, "rated_by", "") or getattr(rating, "rated_by_user_id", "")),
+                    rating_value=int(rating.rating_value),
                     review=rating.review,
                     rating_type=rating.rating_type,
-                    created_at=rating.created_at,
-                    updated_at=rating.updated_at,
+                    created_at=str(rating.created_at),
+                    updated_at=str(rating.updated_at),
                 ) for rating in response.ratings
             ]
             return _enrich_ratings_with_raters(ratings, token)
@@ -441,20 +419,20 @@ class Query:
             ).to_graphql_error()
 
     @strawberry.field
-    def user_followers(self, info: Info, user_id: int) -> typing.List[UserFollower]:
+    def user_followers(self, info: Info, user_id: str) -> typing.List[UserFollower]:
         try:
             log_msg("info", f"Fetching followers for user {user_id}")
             token = get_token(info)
-            response = user_service_client.get_user_followers(user_id,token=token)
+            response = user_service_client.get_user_followers(user_id, token=token)
             return [
                 UserFollower(
-                    id=follower.id,
-                    follower_id=follower.follower_id,
-                    following_id=follower.following_id,
-                    followee_type=getattr(follower, 'followee_type', None),
+                    id=str(follower.id),
+                    follower_id=str(follower.follower_id),
+                    following_id=str(follower.following_id),
+                    followee_type=getattr(follower, "follow_type", None),
                     status=follower.status,
-                    followed_at=follower.followed_at
-                ) for follower in response.followers
+                    followed_at=str(follower.followed_at),
+                ) for follower in getattr(response, "follows", [])
             ]
         except Exception as e:
             log_msg("error", f"Error fetching user followers: {str(e)}")
@@ -465,19 +443,19 @@ class Query:
             ).to_graphql_error()
 
     @strawberry.field
-    def pending_follow_requests(self, info: Info, user_id: int) -> typing.List[UserFollower]:
+    def pending_follow_requests(self, info: Info, user_id: str) -> typing.List[UserFollower]:
         try:
             token = get_token(info)
             response = user_service_client.get_pending_follow_requests(user_id, token=token)
             return [
                 UserFollower(
-                    id=f.id,
-                    follower_id=f.follower_id,
-                    following_id=f.following_id,
-                    followee_type=getattr(f, 'followee_type', None),
+                    id=str(f.id),
+                    follower_id=str(f.follower_id),
+                    following_id=str(f.following_id),
+                    followee_type=getattr(f, "follow_type", None),
                     status=f.status,
-                    followed_at=f.followed_at,
-                ) for f in response.followers
+                    followed_at=str(f.followed_at),
+                ) for f in getattr(response, "follows", [])
             ]
         except Exception as e:
             raise REException(
@@ -487,20 +465,20 @@ class Query:
             ).to_graphql_error()
 
     @strawberry.field
-    def user_following(self,info: Info, user_id: int) -> typing.List[UserFollower]:
+    def user_following(self, info: Info, user_id: str) -> typing.List[UserFollower]:
         try:
             log_msg("info", f"Fetching following for user {user_id}")
             token = get_token(info)
-            response = user_service_client.get_user_following(user_id,token=token)
+            response = user_service_client.get_user_following(user_id, token=token)
             return [
                 UserFollower(
-                    id=follow.id,
-                    follower_id=follow.follower_id,
-                    following_id=follow.following_id,
-                    followee_type=getattr(follow, 'followee_type', None),
+                    id=str(follow.id),
+                    follower_id=str(follow.follower_id),
+                    following_id=str(follow.following_id),
+                    followee_type=getattr(follow, "follow_type", None),
                     status=follow.status,
-                    followed_at=follow.followed_at
-                ) for follow in response.followers
+                    followed_at=str(follow.followed_at),
+                ) for follow in getattr(response, "follows", [])
             ]
         except Exception as e:
             log_msg("error", f"Error fetching user following: {str(e)}")
@@ -511,7 +489,7 @@ class Query:
             ).to_graphql_error()
 
     @strawberry.field
-    def check_following_status(self,info: Info, user_id: int, following_id: int) -> typing.Optional[UserFollower]:
+    def check_following_status(self, info: Info, user_id: str, following_id: str) -> typing.Optional[UserFollower]:
         try:
             log_msg("info", f"Checking following status for user {user_id} -> {following_id}")
             token = get_token(info)
@@ -672,42 +650,27 @@ class Mutation:
         bio: typing.Optional[str] = None
     ) -> User:
         try:
+            from uuid import uuid4
+            from app.clients.auth.auth_client import auth_service_client
+
             log_msg("info", f"Creating user {email}")
             token = get_token(info)
+            new_user_id = str(uuid4())
             response = user_service_client.create_user(
                 first_name=first_name,
                 last_name=last_name,
                 email=email,
                 phone=phone,
-                password=password,
                 role=role,
                 address=address,
                 latitude=latitude,
                 longitude=longitude,
                 bio=bio,
+                user_id=new_user_id,
                 token=token
             )
-            cover_photo = getattr(response, 'cover_photo', None) or None
-            return User(
-                id=response.id,
-                first_name=response.first_name,
-                last_name=response.last_name,
-                email=response.email,
-                phone=response.phone,
-                profile_photo=response.profile_photo,
-                cover_photo=cover_photo,
-                profile_photo_signed_url=generate_presigned_get_url_from_url(response.profile_photo) if response.profile_photo else None,
-                cover_photo_signed_url=generate_presigned_get_url_from_url(cover_photo) if cover_photo else None,
-                role=response.role,
-                address=response.address,
-                latitude=response.latitude,
-                longitude=response.longitude,
-                bio=response.bio,
-                isactive=response.isActive,
-                email_verified=response.email_verified,
-                phone_verified=response.phone_verified,
-                created_at=response.created_at
-            )
+            auth_service_client.register_credentials(new_user_id, password, "LOCAL")
+            return _user_from_proto(response)
         except Exception as e:
             error_message = str(e)
             if "Email already registered" in error_message:
@@ -739,8 +702,8 @@ class Mutation:
     async def create_user_rating(
         self,
         info: Info,
-        rated_user_id: int,
-        rated_by_user_id: int,
+        rated_user_id: str,
+        rated_by_user_id: str,
         rating_value: int,
         title: typing.Optional[str] = None,
         review: typing.Optional[str] = None,
@@ -867,8 +830,8 @@ class Mutation:
     async def follow_user(
         self,
         info: Info,
-        user_id: int,
-        following_id: int
+        user_id: str,
+        following_id: str
     ) -> UserFollower:
         try:
             log_msg("info", f"User {user_id} following user {following_id}")
@@ -895,8 +858,8 @@ class Mutation:
     async def update_follow_status(
         self,
         info: Info,
-        follower_id: int,
-        following_id: int,
+        follower_id: str,
+        following_id: str,
         status: str,  # 'active' to accept, 'rejected' to decline
     ) -> UserFollower:
         try:
@@ -933,7 +896,7 @@ class Mutation:
     async def update_user_location(
         self,
         info: Info,
-        user_id: int,
+        user_id: str,
         latitude: float,
         longitude: float,
     ) -> User:

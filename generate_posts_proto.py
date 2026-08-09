@@ -27,7 +27,17 @@ def generate_proto_files():
             f"--grpc_python_out={proto_dir}",
             "post.proto"
         ], check=True)
-        
+
+        pb2_grpc_file = os.path.join(proto_dir, "post_pb2_grpc.py")
+        with open(pb2_grpc_file, "r", encoding="utf-8") as f:
+            content = f.read()
+        content = content.replace(
+            "import post_pb2 as post__pb2",
+            "from . import post_pb2 as post__pb2",
+        )
+        with open(pb2_grpc_file, "w", encoding="utf-8") as f:
+            f.write(content)
+
         print("Posts proto files generated successfully!")
         
     except subprocess.CalledProcessError as e:

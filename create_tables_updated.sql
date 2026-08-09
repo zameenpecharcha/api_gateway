@@ -210,13 +210,13 @@ CREATE TABLE IF NOT EXISTS "post".posts (
     share_count         INT             NOT NULL DEFAULT 0,
     view_count          BIGINT          NOT NULL DEFAULT 0,
     report_count        INT             NOT NULL DEFAULT 0,
+    is_pinned           BOOLEAN         NOT NULL DEFAULT FALSE,
+    pinned_at           TIMESTAMPTZ,
     created_at          TIMESTAMPTZ       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          TIMESTAMPTZ     DEFAULT CURRENT_TIMESTAMP,
     deleted_at          TIMESTAMPTZ,
 
     CONSTRAINT posts_post_code_unique UNIQUE (post_code),
-    CONSTRAINT fk_posts_user
-        FOREIGN KEY (user_id) REFERENCES "user".users (id) ON DELETE CASCADE,
     CONSTRAINT posts_like_count_non_negative CHECK (like_count >= 0),
     CONSTRAINT posts_comment_count_non_negative CHECK (comment_count >= 0),
     CONSTRAINT posts_share_count_non_negative CHECK (share_count >= 0),
@@ -234,8 +234,9 @@ COMMENT ON TABLE "post".posts IS 'Social / property feed posts; owned by post_se
 COMMENT ON COLUMN "post".posts.post_type IS 'Post format: TEXT, IMAGE, VIDEO, PROPERTY, POLL, REVIEW.';
 COMMENT ON COLUMN "post".posts.visibility IS 'Audience: PUBLIC, FOLLOWERS_ONLY, PRIVATE.';
 COMMENT ON COLUMN "post".posts.status IS 'Lifecycle: DRAFT, PUBLISHED, ARCHIVED, DELETED.';
-COMMENT ON COLUMN "post".posts.property_id IS 'Optional link to property.properties (FK: fk_posts_property).';
+COMMENT ON COLUMN "post".posts.user_id IS 'Author user UUID (logical reference; no cross-schema FK).';
 COMMENT ON COLUMN "post".posts.deleted_at IS 'Soft-delete timestamp; NULL means active.';
+COMMENT ON COLUMN "post".posts.is_pinned IS 'When true, post is pinned to top of owner profile feed.';
 
 -- -----------------------------------------------------------------------------
 -- post.comments
@@ -260,8 +261,6 @@ CREATE TABLE IF NOT EXISTS "post".comments (
         FOREIGN KEY (post_id) REFERENCES "post".posts (id) ON DELETE CASCADE,
     CONSTRAINT fk_comments_parent
         FOREIGN KEY (parent_comment_id) REFERENCES "post".comments (id) ON DELETE CASCADE,
-    CONSTRAINT fk_comments_user
-        FOREIGN KEY (user_id) REFERENCES "user".users (id) ON DELETE CASCADE,
     CONSTRAINT comments_like_count_non_negative CHECK (like_count >= 0),
     CONSTRAINT comments_reply_count_non_negative CHECK (reply_count >= 0),
     CONSTRAINT comments_report_count_non_negative CHECK (report_count >= 0),
@@ -272,6 +271,7 @@ CREATE TABLE IF NOT EXISTS "post".comments (
 
 COMMENT ON TABLE "post".comments IS 'Comments and nested replies on posts; owned by post_service.';
 COMMENT ON COLUMN "post".comments.status IS 'Lifecycle: ACTIVE, DELETED, HIDDEN.';
+COMMENT ON COLUMN "post".comments.user_id IS 'Commenter user UUID (logical reference; no cross-schema FK).';
 
 -- -----------------------------------------------------------------------------
 -- post.post_likes
@@ -286,15 +286,13 @@ CREATE TABLE IF NOT EXISTS "post".post_likes (
 
     CONSTRAINT fk_post_likes_post
         FOREIGN KEY (post_id) REFERENCES "post".posts (id) ON DELETE CASCADE,
-    CONSTRAINT fk_post_likes_user
-        FOREIGN KEY (user_id) REFERENCES "user".users (id) ON DELETE CASCADE,
     CONSTRAINT post_likes_pair_unique UNIQUE (post_id, user_id),
     CONSTRAINT post_likes_reaction_type_valid
         CHECK (reaction_type IN ('LIKE', 'LOVE', 'WOW', 'HAHA', 'SAD', 'ANGRY'))
 );
 
 COMMENT ON TABLE "post".post_likes IS 'Per-user reactions on posts; owned by post_service.';
-COMMENT ON COLUMN "post".post_likes.reaction_type IS 'Reaction: LIKE, LOVE, WOW, HAHA, SAD, ANGRY.';
+COMMENT ON COLUMN "post".post_likes.user_id IS 'Reactor user UUID (logical reference; no cross-schema FK).';
 
 -- -----------------------------------------------------------------------------
 -- post.post_shares
@@ -313,8 +311,6 @@ CREATE TABLE IF NOT EXISTS "post".post_shares (
     CONSTRAINT post_shares_share_code_unique UNIQUE (share_code),
     CONSTRAINT fk_post_shares_post
         FOREIGN KEY (post_id) REFERENCES "post".posts (id) ON DELETE CASCADE,
-    CONSTRAINT fk_post_shares_shared_by
-        FOREIGN KEY (shared_by) REFERENCES "user".users (id) ON DELETE CASCADE,
     CONSTRAINT post_shares_share_type_valid
         CHECK (share_type IN ('REPOST', 'SHARE')),
     CONSTRAINT post_shares_visibility_valid
@@ -322,6 +318,7 @@ CREATE TABLE IF NOT EXISTS "post".post_shares (
 );
 
 COMMENT ON TABLE "post".post_shares IS 'Post share records; owned by post_service.';
+COMMENT ON COLUMN "post".post_shares.shared_by IS 'Sharer user UUID (logical reference; no cross-schema FK).';
 COMMENT ON COLUMN "post".post_shares.share_type IS 'Share mode: REPOST, SHARE.';
 COMMENT ON COLUMN "post".post_shares.visibility IS 'Audience: PUBLIC, FOLLOWERS_ONLY, PRIVATE.';
 
@@ -338,14 +335,13 @@ CREATE TABLE IF NOT EXISTS "post".comment_likes (
 
     CONSTRAINT fk_comment_likes_comment
         FOREIGN KEY (comment_id) REFERENCES "post".comments (id) ON DELETE CASCADE,
-    CONSTRAINT fk_comment_likes_user
-        FOREIGN KEY (user_id) REFERENCES "user".users (id) ON DELETE CASCADE,
     CONSTRAINT comment_likes_pair_unique UNIQUE (comment_id, user_id),
     CONSTRAINT comment_likes_reaction_type_valid
         CHECK (reaction_type IN ('LIKE', 'LOVE', 'WOW', 'HAHA'))
 );
 
 COMMENT ON TABLE "post".comment_likes IS 'Per-user reactions on comments (comment_reactions); owned by post_service.';
+COMMENT ON COLUMN "post".comment_likes.user_id IS 'Reactor user UUID (logical reference; no cross-schema FK).';
 COMMENT ON COLUMN "post".comment_likes.reaction_type IS 'Reaction: LIKE, LOVE, WOW, HAHA.';
 
 -- -----------------------------------------------------------------------------

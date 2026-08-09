@@ -26,7 +26,11 @@ if _version_not_supported:
 
 
 class UserServiceStub:
-    """Missing associated documentation comment in .proto file."""
+    """=============================================================================
+    User Service — UUID-based, decoupled from auth/post/property services
+    =============================================================================
+
+    """
 
     def __init__(self, channel):
         """Constructor.
@@ -34,85 +38,190 @@ class UserServiceStub:
         Args:
             channel: A grpc.Channel.
         """
-        self.GetUser = channel.unary_unary(
-                '/user.UserService/GetUser',
-                request_serializer=user__pb2.UserRequest.SerializeToString,
-                response_deserializer=user__pb2.UserResponse.FromString,
-                _registered_method=True)
-        self.ListUsers = channel.unary_unary(
-                '/user.UserService/ListUsers',
-                request_serializer=user__pb2.ListUsersRequest.SerializeToString,
-                response_deserializer=user__pb2.ListUsersResponse.FromString,
-                _registered_method=True)
         self.CreateUser = channel.unary_unary(
                 '/user.UserService/CreateUser',
                 request_serializer=user__pb2.CreateUserRequest.SerializeToString,
                 response_deserializer=user__pb2.UserResponse.FromString,
+                _registered_method=True)
+        self.GetUser = channel.unary_unary(
+                '/user.UserService/GetUser',
+                request_serializer=user__pb2.GetUserRequest.SerializeToString,
+                response_deserializer=user__pb2.UserResponse.FromString,
+                _registered_method=True)
+        self.GetUserByEmail = channel.unary_unary(
+                '/user.UserService/GetUserByEmail',
+                request_serializer=user__pb2.GetUserByEmailRequest.SerializeToString,
+                response_deserializer=user__pb2.UserResponse.FromString,
+                _registered_method=True)
+        self.GetUserByPhone = channel.unary_unary(
+                '/user.UserService/GetUserByPhone',
+                request_serializer=user__pb2.GetUserByPhoneRequest.SerializeToString,
+                response_deserializer=user__pb2.UserResponse.FromString,
+                _registered_method=True)
+        self.UpdateVerificationFlags = channel.unary_unary(
+                '/user.UserService/UpdateVerificationFlags',
+                request_serializer=user__pb2.UpdateVerificationFlagsRequest.SerializeToString,
+                response_deserializer=user__pb2.UserResponse.FromString,
+                _registered_method=True)
+        self.GetMyProfile = channel.unary_unary(
+                '/user.UserService/GetMyProfile',
+                request_serializer=user__pb2.GetMyProfileRequest.SerializeToString,
+                response_deserializer=user__pb2.UserResponse.FromString,
+                _registered_method=True)
+        self.UpdateUserProfile = channel.unary_unary(
+                '/user.UserService/UpdateUserProfile',
+                request_serializer=user__pb2.UpdateUserProfileRequest.SerializeToString,
+                response_deserializer=user__pb2.UserResponse.FromString,
+                _registered_method=True)
+        self.DeleteUser = channel.unary_unary(
+                '/user.UserService/DeleteUser',
+                request_serializer=user__pb2.DeleteUserRequest.SerializeToString,
+                response_deserializer=user__pb2.GenericResponse.FromString,
+                _registered_method=True)
+        self.UploadProfilePhoto = channel.unary_unary(
+                '/user.UserService/UploadProfilePhoto',
+                request_serializer=user__pb2.UploadPhotoRequest.SerializeToString,
+                response_deserializer=user__pb2.UserResponse.FromString,
+                _registered_method=True)
+        self.DeleteProfilePhoto = channel.unary_unary(
+                '/user.UserService/DeleteProfilePhoto',
+                request_serializer=user__pb2.DeletePhotoRequest.SerializeToString,
+                response_deserializer=user__pb2.UserResponse.FromString,
+                _registered_method=True)
+        self.UploadCoverPhoto = channel.unary_unary(
+                '/user.UserService/UploadCoverPhoto',
+                request_serializer=user__pb2.UploadPhotoRequest.SerializeToString,
+                response_deserializer=user__pb2.UserResponse.FromString,
+                _registered_method=True)
+        self.DeleteCoverPhoto = channel.unary_unary(
+                '/user.UserService/DeleteCoverPhoto',
+                request_serializer=user__pb2.DeletePhotoRequest.SerializeToString,
+                response_deserializer=user__pb2.UserResponse.FromString,
+                _registered_method=True)
+        self.SearchUsers = channel.unary_unary(
+                '/user.UserService/SearchUsers',
+                request_serializer=user__pb2.SearchUsersRequest.SerializeToString,
+                response_deserializer=user__pb2.UserListResponse.FromString,
+                _registered_method=True)
+        self.GetUserStatistics = channel.unary_unary(
+                '/user.UserService/GetUserStatistics',
+                request_serializer=user__pb2.GetUserStatisticsRequest.SerializeToString,
+                response_deserializer=user__pb2.UserStatisticsResponse.FromString,
+                _registered_method=True)
+        self.ListUsers = channel.unary_unary(
+                '/user.UserService/ListUsers',
+                request_serializer=user__pb2.SearchUsersRequest.SerializeToString,
+                response_deserializer=user__pb2.UserListResponse.FromString,
+                _registered_method=True)
+        self.FollowUser = channel.unary_unary(
+                '/user.UserService/FollowUser',
+                request_serializer=user__pb2.FollowUserRequest.SerializeToString,
+                response_deserializer=user__pb2.FollowResponse.FromString,
+                _registered_method=True)
+        self.UnfollowUser = channel.unary_unary(
+                '/user.UserService/UnfollowUser',
+                request_serializer=user__pb2.UnfollowUserRequest.SerializeToString,
+                response_deserializer=user__pb2.GenericResponse.FromString,
+                _registered_method=True)
+        self.GetFollowers = channel.unary_unary(
+                '/user.UserService/GetFollowers',
+                request_serializer=user__pb2.GetFollowListRequest.SerializeToString,
+                response_deserializer=user__pb2.FollowListResponse.FromString,
+                _registered_method=True)
+        self.GetFollowing = channel.unary_unary(
+                '/user.UserService/GetFollowing',
+                request_serializer=user__pb2.GetFollowListRequest.SerializeToString,
+                response_deserializer=user__pb2.FollowListResponse.FromString,
+                _registered_method=True)
+        self.CheckFollowStatus = channel.unary_unary(
+                '/user.UserService/CheckFollowStatus',
+                request_serializer=user__pb2.CheckFollowStatusRequest.SerializeToString,
+                response_deserializer=user__pb2.FollowStatusResponse.FromString,
+                _registered_method=True)
+        self.AddUserRating = channel.unary_unary(
+                '/user.UserService/AddUserRating',
+                request_serializer=user__pb2.AddUserRatingRequest.SerializeToString,
+                response_deserializer=user__pb2.UserRatingResponse.FromString,
+                _registered_method=True)
+        self.UpdateUserRating = channel.unary_unary(
+                '/user.UserService/UpdateUserRating',
+                request_serializer=user__pb2.UpdateUserRatingRequest.SerializeToString,
+                response_deserializer=user__pb2.UserRatingResponse.FromString,
+                _registered_method=True)
+        self.DeleteUserRating = channel.unary_unary(
+                '/user.UserService/DeleteUserRating',
+                request_serializer=user__pb2.DeleteUserRatingRequest.SerializeToString,
+                response_deserializer=user__pb2.GenericResponse.FromString,
+                _registered_method=True)
+        self.GetUserRatings = channel.unary_unary(
+                '/user.UserService/GetUserRatings',
+                request_serializer=user__pb2.GetUserRatingsRequest.SerializeToString,
+                response_deserializer=user__pb2.UserRatingListResponse.FromString,
+                _registered_method=True)
+        self.GetRatingSummary = channel.unary_unary(
+                '/user.UserService/GetRatingSummary',
+                request_serializer=user__pb2.GetRatingSummaryRequest.SerializeToString,
+                response_deserializer=user__pb2.RatingSummaryResponse.FromString,
+                _registered_method=True)
+        self.GetMySubmittedRatings = channel.unary_unary(
+                '/user.UserService/GetMySubmittedRatings',
+                request_serializer=user__pb2.GetMySubmittedRatingsRequest.SerializeToString,
+                response_deserializer=user__pb2.UserRatingListResponse.FromString,
+                _registered_method=True)
+        self.CreateUserRating = channel.unary_unary(
+                '/user.UserService/CreateUserRating',
+                request_serializer=user__pb2.AddUserRatingRequest.SerializeToString,
+                response_deserializer=user__pb2.UserRatingResponse.FromString,
+                _registered_method=True)
+        self.GetMedia = channel.unary_unary(
+                '/user.UserService/GetMedia',
+                request_serializer=user__pb2.GetMediaRequest.SerializeToString,
+                response_deserializer=user__pb2.MediaResponse.FromString,
+                _registered_method=True)
+        self.UpdateProfilePhoto = channel.unary_unary(
+                '/user.UserService/UpdateProfilePhoto',
+                request_serializer=user__pb2.UploadPhotoRequest.SerializeToString,
+                response_deserializer=user__pb2.UserResponse.FromString,
+                _registered_method=True)
+        self.UpdateCoverPhoto = channel.unary_unary(
+                '/user.UserService/UpdateCoverPhoto',
+                request_serializer=user__pb2.UploadPhotoRequest.SerializeToString,
+                response_deserializer=user__pb2.UserResponse.FromString,
+                _registered_method=True)
+        self.SuggestedUsers = channel.unary_unary(
+                '/user.UserService/SuggestedUsers',
+                request_serializer=user__pb2.SuggestedUsersRequest.SerializeToString,
+                response_deserializer=user__pb2.UserListResponse.FromString,
+                _registered_method=True)
+        self.CheckFollowingStatus = channel.unary_unary(
+                '/user.UserService/CheckFollowingStatus',
+                request_serializer=user__pb2.CheckFollowStatusRequest.SerializeToString,
+                response_deserializer=user__pb2.FollowStatusResponse.FromString,
+                _registered_method=True)
+        self.GetUserFollowers = channel.unary_unary(
+                '/user.UserService/GetUserFollowers',
+                request_serializer=user__pb2.GetFollowListRequest.SerializeToString,
+                response_deserializer=user__pb2.FollowListResponse.FromString,
+                _registered_method=True)
+        self.GetUserFollowing = channel.unary_unary(
+                '/user.UserService/GetUserFollowing',
+                request_serializer=user__pb2.GetFollowListRequest.SerializeToString,
+                response_deserializer=user__pb2.FollowListResponse.FromString,
                 _registered_method=True)
         self.UpdateUserLocation = channel.unary_unary(
                 '/user.UserService/UpdateUserLocation',
                 request_serializer=user__pb2.UpdateUserLocationRequest.SerializeToString,
                 response_deserializer=user__pb2.UserResponse.FromString,
                 _registered_method=True)
-        self.CreateUserRating = channel.unary_unary(
-                '/user.UserService/CreateUserRating',
-                request_serializer=user__pb2.CreateUserRatingRequest.SerializeToString,
-                response_deserializer=user__pb2.UserRatingResponse.FromString,
-                _registered_method=True)
-        self.GetUserRatings = channel.unary_unary(
-                '/user.UserService/GetUserRatings',
-                request_serializer=user__pb2.UserRequest.SerializeToString,
-                response_deserializer=user__pb2.UserRatingsResponse.FromString,
-                _registered_method=True)
-        self.FollowUser = channel.unary_unary(
-                '/user.UserService/FollowUser',
-                request_serializer=user__pb2.FollowUserRequest.SerializeToString,
-                response_deserializer=user__pb2.FollowUserResponse.FromString,
-                _registered_method=True)
         self.UpdateFollowStatus = channel.unary_unary(
                 '/user.UserService/UpdateFollowStatus',
-                request_serializer=user__pb2.FollowUserRequest.SerializeToString,
-                response_deserializer=user__pb2.FollowUserResponse.FromString,
+                request_serializer=user__pb2.UpdateFollowStatusRequest.SerializeToString,
+                response_deserializer=user__pb2.FollowResponse.FromString,
                 _registered_method=True)
         self.GetPendingFollowRequests = channel.unary_unary(
                 '/user.UserService/GetPendingFollowRequests',
-                request_serializer=user__pb2.UserRequest.SerializeToString,
-                response_deserializer=user__pb2.UserFollowersResponse.FromString,
-                _registered_method=True)
-        self.GetUserFollowers = channel.unary_unary(
-                '/user.UserService/GetUserFollowers',
-                request_serializer=user__pb2.UserRequest.SerializeToString,
-                response_deserializer=user__pb2.UserFollowersResponse.FromString,
-                _registered_method=True)
-        self.GetUserFollowing = channel.unary_unary(
-                '/user.UserService/GetUserFollowing',
-                request_serializer=user__pb2.UserRequest.SerializeToString,
-                response_deserializer=user__pb2.UserFollowersResponse.FromString,
-                _registered_method=True)
-        self.CheckFollowingStatus = channel.unary_unary(
-                '/user.UserService/CheckFollowingStatus',
-                request_serializer=user__pb2.CheckFollowingRequest.SerializeToString,
-                response_deserializer=user__pb2.FollowUserResponse.FromString,
-                _registered_method=True)
-        self.GetMedia = channel.unary_unary(
-                '/user.UserService/GetMedia',
-                request_serializer=user__pb2.UserRequest.SerializeToString,
-                response_deserializer=user__pb2.MediaResponse.FromString,
-                _registered_method=True)
-        self.UpdateProfilePhoto = channel.unary_unary(
-                '/user.UserService/UpdateProfilePhoto',
-                request_serializer=user__pb2.UpdateUserPhotoRequest.SerializeToString,
-                response_deserializer=user__pb2.UserResponse.FromString,
-                _registered_method=True)
-        self.UpdateCoverPhoto = channel.unary_unary(
-                '/user.UserService/UpdateCoverPhoto',
-                request_serializer=user__pb2.UpdateUserPhotoRequest.SerializeToString,
-                response_deserializer=user__pb2.UserResponse.FromString,
-                _registered_method=True)
-        self.SuggestedUsers = channel.unary_unary(
-                '/user.UserService/SuggestedUsers',
-                request_serializer=user__pb2.SuggestedUsersRequest.SerializeToString,
-                response_deserializer=user__pb2.ListUsersResponse.FromString,
+                request_serializer=user__pb2.GetFollowListRequest.SerializeToString,
+                response_deserializer=user__pb2.FollowListResponse.FromString,
                 _registered_method=True)
         self.CreateNotification = channel.unary_unary(
                 '/user.UserService/CreateNotification',
@@ -132,9 +241,92 @@ class UserServiceStub:
 
 
 class UserServiceServicer:
-    """Missing associated documentation comment in .proto file."""
+    """=============================================================================
+    User Service — UUID-based, decoupled from auth/post/property services
+    =============================================================================
+
+    """
+
+    def CreateUser(self, request, context):
+        """--- User profile management ---
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def GetUser(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetUserByEmail(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetUserByPhone(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UpdateVerificationFlags(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetMyProfile(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UpdateUserProfile(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DeleteUser(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UploadProfilePhoto(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DeleteProfilePhoto(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UploadCoverPhoto(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DeleteCoverPhoto(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SearchUsers(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetUserStatistics(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -146,19 +338,51 @@ class UserServiceServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def CreateUser(self, request, context):
+    def FollowUser(self, request, context):
+        """--- Follow ---
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UnfollowUser(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def UpdateUserLocation(self, request, context):
+    def GetFollowers(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def CreateUserRating(self, request, context):
+    def GetFollowing(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CheckFollowStatus(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def AddUserRating(self, request, context):
+        """--- Ratings ---
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UpdateUserRating(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DeleteUserRating(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -170,45 +394,27 @@ class UserServiceServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def FollowUser(self, request, context):
+    def GetRatingSummary(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def UpdateFollowStatus(self, request, context):
+    def GetMySubmittedRatings(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def GetPendingFollowRequests(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def GetUserFollowers(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def GetUserFollowing(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def CheckFollowingStatus(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+    def CreateUserRating(self, request, context):
+        """--- Legacy / gateway compat ---
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def GetMedia(self, request, context):
-        """Media management
-        """
+        """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -226,6 +432,42 @@ class UserServiceServicer:
         raise NotImplementedError('Method not implemented!')
 
     def SuggestedUsers(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CheckFollowingStatus(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetUserFollowers(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetUserFollowing(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UpdateUserLocation(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UpdateFollowStatus(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetPendingFollowRequests(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -252,85 +494,190 @@ class UserServiceServicer:
 
 def add_UserServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'GetUser': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetUser,
-                    request_deserializer=user__pb2.UserRequest.FromString,
-                    response_serializer=user__pb2.UserResponse.SerializeToString,
-            ),
-            'ListUsers': grpc.unary_unary_rpc_method_handler(
-                    servicer.ListUsers,
-                    request_deserializer=user__pb2.ListUsersRequest.FromString,
-                    response_serializer=user__pb2.ListUsersResponse.SerializeToString,
-            ),
             'CreateUser': grpc.unary_unary_rpc_method_handler(
                     servicer.CreateUser,
                     request_deserializer=user__pb2.CreateUserRequest.FromString,
                     response_serializer=user__pb2.UserResponse.SerializeToString,
+            ),
+            'GetUser': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetUser,
+                    request_deserializer=user__pb2.GetUserRequest.FromString,
+                    response_serializer=user__pb2.UserResponse.SerializeToString,
+            ),
+            'GetUserByEmail': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetUserByEmail,
+                    request_deserializer=user__pb2.GetUserByEmailRequest.FromString,
+                    response_serializer=user__pb2.UserResponse.SerializeToString,
+            ),
+            'GetUserByPhone': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetUserByPhone,
+                    request_deserializer=user__pb2.GetUserByPhoneRequest.FromString,
+                    response_serializer=user__pb2.UserResponse.SerializeToString,
+            ),
+            'UpdateVerificationFlags': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdateVerificationFlags,
+                    request_deserializer=user__pb2.UpdateVerificationFlagsRequest.FromString,
+                    response_serializer=user__pb2.UserResponse.SerializeToString,
+            ),
+            'GetMyProfile': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetMyProfile,
+                    request_deserializer=user__pb2.GetMyProfileRequest.FromString,
+                    response_serializer=user__pb2.UserResponse.SerializeToString,
+            ),
+            'UpdateUserProfile': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdateUserProfile,
+                    request_deserializer=user__pb2.UpdateUserProfileRequest.FromString,
+                    response_serializer=user__pb2.UserResponse.SerializeToString,
+            ),
+            'DeleteUser': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteUser,
+                    request_deserializer=user__pb2.DeleteUserRequest.FromString,
+                    response_serializer=user__pb2.GenericResponse.SerializeToString,
+            ),
+            'UploadProfilePhoto': grpc.unary_unary_rpc_method_handler(
+                    servicer.UploadProfilePhoto,
+                    request_deserializer=user__pb2.UploadPhotoRequest.FromString,
+                    response_serializer=user__pb2.UserResponse.SerializeToString,
+            ),
+            'DeleteProfilePhoto': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteProfilePhoto,
+                    request_deserializer=user__pb2.DeletePhotoRequest.FromString,
+                    response_serializer=user__pb2.UserResponse.SerializeToString,
+            ),
+            'UploadCoverPhoto': grpc.unary_unary_rpc_method_handler(
+                    servicer.UploadCoverPhoto,
+                    request_deserializer=user__pb2.UploadPhotoRequest.FromString,
+                    response_serializer=user__pb2.UserResponse.SerializeToString,
+            ),
+            'DeleteCoverPhoto': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteCoverPhoto,
+                    request_deserializer=user__pb2.DeletePhotoRequest.FromString,
+                    response_serializer=user__pb2.UserResponse.SerializeToString,
+            ),
+            'SearchUsers': grpc.unary_unary_rpc_method_handler(
+                    servicer.SearchUsers,
+                    request_deserializer=user__pb2.SearchUsersRequest.FromString,
+                    response_serializer=user__pb2.UserListResponse.SerializeToString,
+            ),
+            'GetUserStatistics': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetUserStatistics,
+                    request_deserializer=user__pb2.GetUserStatisticsRequest.FromString,
+                    response_serializer=user__pb2.UserStatisticsResponse.SerializeToString,
+            ),
+            'ListUsers': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListUsers,
+                    request_deserializer=user__pb2.SearchUsersRequest.FromString,
+                    response_serializer=user__pb2.UserListResponse.SerializeToString,
+            ),
+            'FollowUser': grpc.unary_unary_rpc_method_handler(
+                    servicer.FollowUser,
+                    request_deserializer=user__pb2.FollowUserRequest.FromString,
+                    response_serializer=user__pb2.FollowResponse.SerializeToString,
+            ),
+            'UnfollowUser': grpc.unary_unary_rpc_method_handler(
+                    servicer.UnfollowUser,
+                    request_deserializer=user__pb2.UnfollowUserRequest.FromString,
+                    response_serializer=user__pb2.GenericResponse.SerializeToString,
+            ),
+            'GetFollowers': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetFollowers,
+                    request_deserializer=user__pb2.GetFollowListRequest.FromString,
+                    response_serializer=user__pb2.FollowListResponse.SerializeToString,
+            ),
+            'GetFollowing': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetFollowing,
+                    request_deserializer=user__pb2.GetFollowListRequest.FromString,
+                    response_serializer=user__pb2.FollowListResponse.SerializeToString,
+            ),
+            'CheckFollowStatus': grpc.unary_unary_rpc_method_handler(
+                    servicer.CheckFollowStatus,
+                    request_deserializer=user__pb2.CheckFollowStatusRequest.FromString,
+                    response_serializer=user__pb2.FollowStatusResponse.SerializeToString,
+            ),
+            'AddUserRating': grpc.unary_unary_rpc_method_handler(
+                    servicer.AddUserRating,
+                    request_deserializer=user__pb2.AddUserRatingRequest.FromString,
+                    response_serializer=user__pb2.UserRatingResponse.SerializeToString,
+            ),
+            'UpdateUserRating': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdateUserRating,
+                    request_deserializer=user__pb2.UpdateUserRatingRequest.FromString,
+                    response_serializer=user__pb2.UserRatingResponse.SerializeToString,
+            ),
+            'DeleteUserRating': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteUserRating,
+                    request_deserializer=user__pb2.DeleteUserRatingRequest.FromString,
+                    response_serializer=user__pb2.GenericResponse.SerializeToString,
+            ),
+            'GetUserRatings': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetUserRatings,
+                    request_deserializer=user__pb2.GetUserRatingsRequest.FromString,
+                    response_serializer=user__pb2.UserRatingListResponse.SerializeToString,
+            ),
+            'GetRatingSummary': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetRatingSummary,
+                    request_deserializer=user__pb2.GetRatingSummaryRequest.FromString,
+                    response_serializer=user__pb2.RatingSummaryResponse.SerializeToString,
+            ),
+            'GetMySubmittedRatings': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetMySubmittedRatings,
+                    request_deserializer=user__pb2.GetMySubmittedRatingsRequest.FromString,
+                    response_serializer=user__pb2.UserRatingListResponse.SerializeToString,
+            ),
+            'CreateUserRating': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateUserRating,
+                    request_deserializer=user__pb2.AddUserRatingRequest.FromString,
+                    response_serializer=user__pb2.UserRatingResponse.SerializeToString,
+            ),
+            'GetMedia': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetMedia,
+                    request_deserializer=user__pb2.GetMediaRequest.FromString,
+                    response_serializer=user__pb2.MediaResponse.SerializeToString,
+            ),
+            'UpdateProfilePhoto': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdateProfilePhoto,
+                    request_deserializer=user__pb2.UploadPhotoRequest.FromString,
+                    response_serializer=user__pb2.UserResponse.SerializeToString,
+            ),
+            'UpdateCoverPhoto': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdateCoverPhoto,
+                    request_deserializer=user__pb2.UploadPhotoRequest.FromString,
+                    response_serializer=user__pb2.UserResponse.SerializeToString,
+            ),
+            'SuggestedUsers': grpc.unary_unary_rpc_method_handler(
+                    servicer.SuggestedUsers,
+                    request_deserializer=user__pb2.SuggestedUsersRequest.FromString,
+                    response_serializer=user__pb2.UserListResponse.SerializeToString,
+            ),
+            'CheckFollowingStatus': grpc.unary_unary_rpc_method_handler(
+                    servicer.CheckFollowingStatus,
+                    request_deserializer=user__pb2.CheckFollowStatusRequest.FromString,
+                    response_serializer=user__pb2.FollowStatusResponse.SerializeToString,
+            ),
+            'GetUserFollowers': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetUserFollowers,
+                    request_deserializer=user__pb2.GetFollowListRequest.FromString,
+                    response_serializer=user__pb2.FollowListResponse.SerializeToString,
+            ),
+            'GetUserFollowing': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetUserFollowing,
+                    request_deserializer=user__pb2.GetFollowListRequest.FromString,
+                    response_serializer=user__pb2.FollowListResponse.SerializeToString,
             ),
             'UpdateUserLocation': grpc.unary_unary_rpc_method_handler(
                     servicer.UpdateUserLocation,
                     request_deserializer=user__pb2.UpdateUserLocationRequest.FromString,
                     response_serializer=user__pb2.UserResponse.SerializeToString,
             ),
-            'CreateUserRating': grpc.unary_unary_rpc_method_handler(
-                    servicer.CreateUserRating,
-                    request_deserializer=user__pb2.CreateUserRatingRequest.FromString,
-                    response_serializer=user__pb2.UserRatingResponse.SerializeToString,
-            ),
-            'GetUserRatings': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetUserRatings,
-                    request_deserializer=user__pb2.UserRequest.FromString,
-                    response_serializer=user__pb2.UserRatingsResponse.SerializeToString,
-            ),
-            'FollowUser': grpc.unary_unary_rpc_method_handler(
-                    servicer.FollowUser,
-                    request_deserializer=user__pb2.FollowUserRequest.FromString,
-                    response_serializer=user__pb2.FollowUserResponse.SerializeToString,
-            ),
             'UpdateFollowStatus': grpc.unary_unary_rpc_method_handler(
                     servicer.UpdateFollowStatus,
-                    request_deserializer=user__pb2.FollowUserRequest.FromString,
-                    response_serializer=user__pb2.FollowUserResponse.SerializeToString,
+                    request_deserializer=user__pb2.UpdateFollowStatusRequest.FromString,
+                    response_serializer=user__pb2.FollowResponse.SerializeToString,
             ),
             'GetPendingFollowRequests': grpc.unary_unary_rpc_method_handler(
                     servicer.GetPendingFollowRequests,
-                    request_deserializer=user__pb2.UserRequest.FromString,
-                    response_serializer=user__pb2.UserFollowersResponse.SerializeToString,
-            ),
-            'GetUserFollowers': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetUserFollowers,
-                    request_deserializer=user__pb2.UserRequest.FromString,
-                    response_serializer=user__pb2.UserFollowersResponse.SerializeToString,
-            ),
-            'GetUserFollowing': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetUserFollowing,
-                    request_deserializer=user__pb2.UserRequest.FromString,
-                    response_serializer=user__pb2.UserFollowersResponse.SerializeToString,
-            ),
-            'CheckFollowingStatus': grpc.unary_unary_rpc_method_handler(
-                    servicer.CheckFollowingStatus,
-                    request_deserializer=user__pb2.CheckFollowingRequest.FromString,
-                    response_serializer=user__pb2.FollowUserResponse.SerializeToString,
-            ),
-            'GetMedia': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetMedia,
-                    request_deserializer=user__pb2.UserRequest.FromString,
-                    response_serializer=user__pb2.MediaResponse.SerializeToString,
-            ),
-            'UpdateProfilePhoto': grpc.unary_unary_rpc_method_handler(
-                    servicer.UpdateProfilePhoto,
-                    request_deserializer=user__pb2.UpdateUserPhotoRequest.FromString,
-                    response_serializer=user__pb2.UserResponse.SerializeToString,
-            ),
-            'UpdateCoverPhoto': grpc.unary_unary_rpc_method_handler(
-                    servicer.UpdateCoverPhoto,
-                    request_deserializer=user__pb2.UpdateUserPhotoRequest.FromString,
-                    response_serializer=user__pb2.UserResponse.SerializeToString,
-            ),
-            'SuggestedUsers': grpc.unary_unary_rpc_method_handler(
-                    servicer.SuggestedUsers,
-                    request_deserializer=user__pb2.SuggestedUsersRequest.FromString,
-                    response_serializer=user__pb2.ListUsersResponse.SerializeToString,
+                    request_deserializer=user__pb2.GetFollowListRequest.FromString,
+                    response_serializer=user__pb2.FollowListResponse.SerializeToString,
             ),
             'CreateNotification': grpc.unary_unary_rpc_method_handler(
                     servicer.CreateNotification,
@@ -356,7 +703,38 @@ def add_UserServiceServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class UserService:
-    """Missing associated documentation comment in .proto file."""
+    """=============================================================================
+    User Service — UUID-based, decoupled from auth/post/property services
+    =============================================================================
+
+    """
+
+    @staticmethod
+    def CreateUser(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/CreateUser',
+            user__pb2.CreateUserRequest.SerializeToString,
+            user__pb2.UserResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
 
     @staticmethod
     def GetUser(request,
@@ -373,8 +751,332 @@ class UserService:
             request,
             target,
             '/user.UserService/GetUser',
-            user__pb2.UserRequest.SerializeToString,
+            user__pb2.GetUserRequest.SerializeToString,
             user__pb2.UserResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetUserByEmail(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/GetUserByEmail',
+            user__pb2.GetUserByEmailRequest.SerializeToString,
+            user__pb2.UserResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetUserByPhone(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/GetUserByPhone',
+            user__pb2.GetUserByPhoneRequest.SerializeToString,
+            user__pb2.UserResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UpdateVerificationFlags(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/UpdateVerificationFlags',
+            user__pb2.UpdateVerificationFlagsRequest.SerializeToString,
+            user__pb2.UserResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetMyProfile(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/GetMyProfile',
+            user__pb2.GetMyProfileRequest.SerializeToString,
+            user__pb2.UserResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UpdateUserProfile(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/UpdateUserProfile',
+            user__pb2.UpdateUserProfileRequest.SerializeToString,
+            user__pb2.UserResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DeleteUser(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/DeleteUser',
+            user__pb2.DeleteUserRequest.SerializeToString,
+            user__pb2.GenericResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UploadProfilePhoto(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/UploadProfilePhoto',
+            user__pb2.UploadPhotoRequest.SerializeToString,
+            user__pb2.UserResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DeleteProfilePhoto(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/DeleteProfilePhoto',
+            user__pb2.DeletePhotoRequest.SerializeToString,
+            user__pb2.UserResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UploadCoverPhoto(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/UploadCoverPhoto',
+            user__pb2.UploadPhotoRequest.SerializeToString,
+            user__pb2.UserResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DeleteCoverPhoto(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/DeleteCoverPhoto',
+            user__pb2.DeletePhotoRequest.SerializeToString,
+            user__pb2.UserResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SearchUsers(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/SearchUsers',
+            user__pb2.SearchUsersRequest.SerializeToString,
+            user__pb2.UserListResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetUserStatistics(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/GetUserStatistics',
+            user__pb2.GetUserStatisticsRequest.SerializeToString,
+            user__pb2.UserStatisticsResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -400,8 +1102,8 @@ class UserService:
             request,
             target,
             '/user.UserService/ListUsers',
-            user__pb2.ListUsersRequest.SerializeToString,
-            user__pb2.ListUsersResponse.FromString,
+            user__pb2.SearchUsersRequest.SerializeToString,
+            user__pb2.UserListResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -413,7 +1115,7 @@ class UserService:
             _registered_method=True)
 
     @staticmethod
-    def CreateUser(request,
+    def FollowUser(request,
             target,
             options=(),
             channel_credentials=None,
@@ -426,9 +1128,495 @@ class UserService:
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/user.UserService/CreateUser',
-            user__pb2.CreateUserRequest.SerializeToString,
+            '/user.UserService/FollowUser',
+            user__pb2.FollowUserRequest.SerializeToString,
+            user__pb2.FollowResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UnfollowUser(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/UnfollowUser',
+            user__pb2.UnfollowUserRequest.SerializeToString,
+            user__pb2.GenericResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetFollowers(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/GetFollowers',
+            user__pb2.GetFollowListRequest.SerializeToString,
+            user__pb2.FollowListResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetFollowing(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/GetFollowing',
+            user__pb2.GetFollowListRequest.SerializeToString,
+            user__pb2.FollowListResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def CheckFollowStatus(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/CheckFollowStatus',
+            user__pb2.CheckFollowStatusRequest.SerializeToString,
+            user__pb2.FollowStatusResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def AddUserRating(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/AddUserRating',
+            user__pb2.AddUserRatingRequest.SerializeToString,
+            user__pb2.UserRatingResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UpdateUserRating(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/UpdateUserRating',
+            user__pb2.UpdateUserRatingRequest.SerializeToString,
+            user__pb2.UserRatingResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DeleteUserRating(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/DeleteUserRating',
+            user__pb2.DeleteUserRatingRequest.SerializeToString,
+            user__pb2.GenericResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetUserRatings(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/GetUserRatings',
+            user__pb2.GetUserRatingsRequest.SerializeToString,
+            user__pb2.UserRatingListResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetRatingSummary(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/GetRatingSummary',
+            user__pb2.GetRatingSummaryRequest.SerializeToString,
+            user__pb2.RatingSummaryResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetMySubmittedRatings(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/GetMySubmittedRatings',
+            user__pb2.GetMySubmittedRatingsRequest.SerializeToString,
+            user__pb2.UserRatingListResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def CreateUserRating(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/CreateUserRating',
+            user__pb2.AddUserRatingRequest.SerializeToString,
+            user__pb2.UserRatingResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetMedia(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/GetMedia',
+            user__pb2.GetMediaRequest.SerializeToString,
+            user__pb2.MediaResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UpdateProfilePhoto(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/UpdateProfilePhoto',
+            user__pb2.UploadPhotoRequest.SerializeToString,
             user__pb2.UserResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UpdateCoverPhoto(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/UpdateCoverPhoto',
+            user__pb2.UploadPhotoRequest.SerializeToString,
+            user__pb2.UserResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SuggestedUsers(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/SuggestedUsers',
+            user__pb2.SuggestedUsersRequest.SerializeToString,
+            user__pb2.UserListResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def CheckFollowingStatus(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/CheckFollowingStatus',
+            user__pb2.CheckFollowStatusRequest.SerializeToString,
+            user__pb2.FollowStatusResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetUserFollowers(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/GetUserFollowers',
+            user__pb2.GetFollowListRequest.SerializeToString,
+            user__pb2.FollowListResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetUserFollowing(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/GetUserFollowing',
+            user__pb2.GetFollowListRequest.SerializeToString,
+            user__pb2.FollowListResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -467,87 +1655,6 @@ class UserService:
             _registered_method=True)
 
     @staticmethod
-    def CreateUserRating(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/user.UserService/CreateUserRating',
-            user__pb2.CreateUserRatingRequest.SerializeToString,
-            user__pb2.UserRatingResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def GetUserRatings(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/user.UserService/GetUserRatings',
-            user__pb2.UserRequest.SerializeToString,
-            user__pb2.UserRatingsResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def FollowUser(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/user.UserService/FollowUser',
-            user__pb2.FollowUserRequest.SerializeToString,
-            user__pb2.FollowUserResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
     def UpdateFollowStatus(request,
             target,
             options=(),
@@ -562,8 +1669,8 @@ class UserService:
             request,
             target,
             '/user.UserService/UpdateFollowStatus',
-            user__pb2.FollowUserRequest.SerializeToString,
-            user__pb2.FollowUserResponse.FromString,
+            user__pb2.UpdateFollowStatusRequest.SerializeToString,
+            user__pb2.FollowResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -589,197 +1696,8 @@ class UserService:
             request,
             target,
             '/user.UserService/GetPendingFollowRequests',
-            user__pb2.UserRequest.SerializeToString,
-            user__pb2.UserFollowersResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def GetUserFollowers(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/user.UserService/GetUserFollowers',
-            user__pb2.UserRequest.SerializeToString,
-            user__pb2.UserFollowersResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def GetUserFollowing(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/user.UserService/GetUserFollowing',
-            user__pb2.UserRequest.SerializeToString,
-            user__pb2.UserFollowersResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def CheckFollowingStatus(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/user.UserService/CheckFollowingStatus',
-            user__pb2.CheckFollowingRequest.SerializeToString,
-            user__pb2.FollowUserResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def GetMedia(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/user.UserService/GetMedia',
-            user__pb2.UserRequest.SerializeToString,
-            user__pb2.MediaResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def UpdateProfilePhoto(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/user.UserService/UpdateProfilePhoto',
-            user__pb2.UpdateUserPhotoRequest.SerializeToString,
-            user__pb2.UserResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def UpdateCoverPhoto(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/user.UserService/UpdateCoverPhoto',
-            user__pb2.UpdateUserPhotoRequest.SerializeToString,
-            user__pb2.UserResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def SuggestedUsers(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/user.UserService/SuggestedUsers',
-            user__pb2.SuggestedUsersRequest.SerializeToString,
-            user__pb2.ListUsersResponse.FromString,
+            user__pb2.GetFollowListRequest.SerializeToString,
+            user__pb2.FollowListResponse.FromString,
             options,
             channel_credentials,
             insecure,
