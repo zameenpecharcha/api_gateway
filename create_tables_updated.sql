@@ -4,12 +4,12 @@
 --
 -- One physical database; logical isolation via PostgreSQL schemas per service.
 -- Schemas are added incrementally. Currently implemented:
---   • user   — users, followers, user_ratings
+--   • user   — users, followers, user_ratings, notifications
 --   • post      — posts, comments, post_likes, post_shares, comment_likes
 --   • property  — properties, property_features, property_ratings, property_views,
 --                 saved_properties, property_documents
 --   • auth        — auth_users
---   • api_gateway — reports, media
+--   • api_gateway — reports, media (no separate media schema)
 --
 -- Upcoming (to be added in follow-up revisions):
 --   • chat, ...
@@ -157,6 +157,27 @@ COMMENT ON COLUMN "user".user_ratings.rating_type IS 'Rating category: BUILDER, 
 COMMENT ON COLUMN "user".user_ratings.status IS 'Rating visibility: ACTIVE, HIDDEN, DELETED.';
 
 -- -----------------------------------------------------------------------------
+-- user.notifications
+-- In-app notifications for a user (logical user_id; no cross-schema FK).
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS "user".notifications (
+    id              UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID            NOT NULL,
+    title           VARCHAR(255),
+    message         TEXT,
+    type            VARCHAR(50),
+    read            BOOLEAN         NOT NULL DEFAULT FALSE,
+    metadata        TEXT,
+    created_at      TIMESTAMPTZ     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE "user".notifications IS 'User notifications; owned by user_service.';
+COMMENT ON COLUMN "user".notifications.user_id IS 'Recipient user UUID (logical reference; no cross-schema FK).';
+COMMENT ON COLUMN "user".notifications.read IS 'Whether the notification has been read.';
+COMMENT ON COLUMN "user".notifications.metadata IS 'Optional JSON payload as text.';
+
+-- -----------------------------------------------------------------------------
 -- Indexes — user schema
 -- -----------------------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS idx_users_email ON "user".users (email);
@@ -173,6 +194,11 @@ CREATE INDEX IF NOT EXISTS idx_followers_status ON "user".followers (status);
 CREATE INDEX IF NOT EXISTS idx_user_ratings_rated_user_id ON "user".user_ratings (rated_user_id);
 CREATE INDEX IF NOT EXISTS idx_user_ratings_rated_by ON "user".user_ratings (rated_by);
 CREATE INDEX IF NOT EXISTS idx_user_ratings_status ON "user".user_ratings (status);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON "user".notifications (user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_created_at ON "user".notifications (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON "user".notifications (user_id)
+    WHERE read = FALSE;
 
 -- =============================================================================
 -- END USER SCHEMA
@@ -199,7 +225,7 @@ CREATE TABLE IF NOT EXISTS "post".posts (
     latitude            DECIMAL(10, 7),
     longitude           DECIMAL(10, 7),
     price               DECIMAL(18, 2),
-    currency            VARCHAR(10),
+    currency            VARCHAR(10)     DEFAULT 'INR',
     is_anonymous        BOOLEAN         NOT NULL DEFAULT FALSE,
     allow_comments      BOOLEAN         NOT NULL DEFAULT TRUE,
     allow_share         BOOLEAN         NOT NULL DEFAULT TRUE,
@@ -356,6 +382,8 @@ CREATE INDEX IF NOT EXISTS idx_posts_visibility ON "post".posts (visibility);
 CREATE INDEX IF NOT EXISTS idx_posts_created_at ON "post".posts (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_posts_location ON "post".posts (location);
 CREATE INDEX IF NOT EXISTS idx_posts_active ON "post".posts (is_anonymous, status) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_posts_user_pinned ON "post".posts (user_id, is_pinned, pinned_at DESC)
+    WHERE is_pinned = TRUE AND deleted_at IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_comments_post_id ON "post".comments (post_id);
 CREATE INDEX IF NOT EXISTS idx_comments_user_id ON "post".comments (user_id);
@@ -452,7 +480,8 @@ CREATE TABLE IF NOT EXISTS "property".properties (
     CONSTRAINT properties_report_count_non_negative CHECK (report_count >= 0),
     CONSTRAINT properties_property_type_valid
         CHECK (property_type IS NULL OR property_type IN (
-            'APARTMENT', 'VILLA', 'PLOT', 'COMMERCIAL', 'OFFICE', 'SHOP', 'HOUSE', 'LAND'
+            'APARTMENT', 'VILLA', 'PLOT', 'HOUSE', 'PENTHOUSE',
+            'COMMERCIAL', 'OFFICE', 'SHOP', 'WAREHOUSE', 'LAND'
         )),
     CONSTRAINT properties_listing_type_valid
         CHECK (listing_type IS NULL OR listing_type IN ('SALE', 'RENT', 'LEASE')),
@@ -460,7 +489,7 @@ CREATE TABLE IF NOT EXISTS "property".properties (
         CHECK (area_unit IS NULL OR area_unit IN ('SQFT', 'SQM', 'ACRE', 'HECTARE')),
     CONSTRAINT properties_construction_status_valid
         CHECK (construction_status IS NULL OR construction_status IN (
-            'READY_TO_MOVE', 'UNDER_CONSTRUCTION', 'NEW_LAUNCH'
+            'READY_TO_MOVE', 'UNDER_CONSTRUCTION', 'NEW_LAUNCH', 'RESALE'
         )),
     CONSTRAINT properties_furnishing_status_valid
         CHECK (furnishing_status IS NULL OR furnishing_status IN (
