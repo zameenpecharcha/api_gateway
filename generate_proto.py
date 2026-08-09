@@ -3,6 +3,10 @@ import subprocess
 import sys
 
 def generate_proto_for_service(service_name, proto_dir, proto_file):
+    if not os.path.isfile(proto_file):
+        print(f"Skipping {service_name}: proto file not found at {proto_file}")
+        return False
+
     # Create __init__.py files
     os.makedirs(proto_dir, exist_ok=True)
     with open(os.path.join(proto_dir, "__init__.py"), "w") as f:
@@ -36,38 +40,34 @@ def generate_proto_for_service(service_name, proto_dir, proto_file):
             f.write(content)
             
         print(f"Fixed imports in {service_name} generated files!")
+        return True
         
     except subprocess.CalledProcessError as e:
         print(f"Error generating {service_name} proto files: {str(e)}")
+        return False
 
 def generate_proto():
     # Get the current directory
     current_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Auth service protos
-    auth_proto_dir = os.path.join(current_dir, "app", "proto_files", "auth")
-    auth_proto_file = os.path.join(auth_proto_dir, "auth.proto")
-    generate_proto_for_service("auth", auth_proto_dir, auth_proto_file)
-    
-    # User service protos
-    user_proto_dir = os.path.join(current_dir, "app", "proto_files", "user")
-    user_proto_file = os.path.join(user_proto_dir, "user.proto")
-    generate_proto_for_service("user", user_proto_dir, user_proto_file)
+    services = [
+        ("auth", "auth", "auth.proto"),
+        ("user", "user", "user.proto"),
+        ("post", "posts", "post.proto"),
+        ("property", "property", "property.proto"),
+        ("comments", "comments", "comments.proto"),
+    ]
 
-    # Posts service protos
-    posts_proto_dir = os.path.join(current_dir, "app", "proto_files", "posts")
-    posts_proto_file = os.path.join(posts_proto_dir, "post.proto")
-    generate_proto_for_service("post", posts_proto_dir, posts_proto_file)
+    results = []
+    for service_name, proto_subdir, proto_filename in services:
+        proto_dir = os.path.join(current_dir, "app", "proto_files", proto_subdir)
+        proto_file = os.path.join(proto_dir, proto_filename)
+        results.append(generate_proto_for_service(service_name, proto_dir, proto_file))
 
-    # Property service protos
-    property_proto_dir = os.path.join(current_dir, "app", "proto_files", "property")
-    property_proto_file = os.path.join(property_proto_dir, "property.proto")
-    generate_proto_for_service("property", property_proto_dir, property_proto_file)
-
-    # Comments service protos
-    comments_proto_dir = os.path.join(current_dir, "app", "proto_files", "comments")
-    comments_proto_file = os.path.join(comments_proto_dir, "comments.proto")
-    generate_proto_for_service("comments", comments_proto_dir, comments_proto_file)
+    generated = sum(1 for ok in results if ok)
+    skipped = len(results) - generated
+    print(f"Done: {generated} generated, {skipped} skipped.")
+    return all(results) or generated > 0
 
 if __name__ == "__main__":
     generate_proto() 

@@ -26,7 +26,12 @@ if _version_not_supported:
 
 
 class AuthServiceStub:
-    """Missing associated documentation comment in .proto file."""
+    """=============================================================================
+    Auth Service — UUID-based credentials (auth.auth_users)
+    Profile data lives in user_service; gateway orchestrates registration.
+    =============================================================================
+
+    """
 
     def __init__(self, channel):
         """Constructor.
@@ -34,10 +39,30 @@ class AuthServiceStub:
         Args:
             channel: A grpc.Channel.
         """
+        self.RegisterCredentials = channel.unary_unary(
+                '/auth.AuthService/RegisterCredentials',
+                request_serializer=auth__pb2.RegisterCredentialsRequest.SerializeToString,
+                response_deserializer=auth__pb2.GenericResponse.FromString,
+                _registered_method=True)
         self.Login = channel.unary_unary(
                 '/auth.AuthService/Login',
                 request_serializer=auth__pb2.LoginRequest.SerializeToString,
                 response_deserializer=auth__pb2.LoginResponse.FromString,
+                _registered_method=True)
+        self.IssueTokens = channel.unary_unary(
+                '/auth.AuthService/IssueTokens',
+                request_serializer=auth__pb2.IssueTokensRequest.SerializeToString,
+                response_deserializer=auth__pb2.LoginResponse.FromString,
+                _registered_method=True)
+        self.VerifyGoogleToken = channel.unary_unary(
+                '/auth.AuthService/VerifyGoogleToken',
+                request_serializer=auth__pb2.VerifyGoogleTokenRequest.SerializeToString,
+                response_deserializer=auth__pb2.OAuthProfileResponse.FromString,
+                _registered_method=True)
+        self.VerifyFacebookToken = channel.unary_unary(
+                '/auth.AuthService/VerifyFacebookToken',
+                request_serializer=auth__pb2.VerifyFacebookTokenRequest.SerializeToString,
+                response_deserializer=auth__pb2.OAuthProfileResponse.FromString,
                 _registered_method=True)
         self.GoogleSignIn = channel.unary_unary(
                 '/auth.AuthService/GoogleSignIn',
@@ -92,9 +117,38 @@ class AuthServiceStub:
 
 
 class AuthServiceServicer:
-    """Missing associated documentation comment in .proto file."""
+    """=============================================================================
+    Auth Service — UUID-based credentials (auth.auth_users)
+    Profile data lives in user_service; gateway orchestrates registration.
+    =============================================================================
+
+    """
+
+    def RegisterCredentials(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def Login(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def IssueTokens(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def VerifyGoogleToken(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def VerifyFacebookToken(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -163,10 +217,30 @@ class AuthServiceServicer:
 
 def add_AuthServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
+            'RegisterCredentials': grpc.unary_unary_rpc_method_handler(
+                    servicer.RegisterCredentials,
+                    request_deserializer=auth__pb2.RegisterCredentialsRequest.FromString,
+                    response_serializer=auth__pb2.GenericResponse.SerializeToString,
+            ),
             'Login': grpc.unary_unary_rpc_method_handler(
                     servicer.Login,
                     request_deserializer=auth__pb2.LoginRequest.FromString,
                     response_serializer=auth__pb2.LoginResponse.SerializeToString,
+            ),
+            'IssueTokens': grpc.unary_unary_rpc_method_handler(
+                    servicer.IssueTokens,
+                    request_deserializer=auth__pb2.IssueTokensRequest.FromString,
+                    response_serializer=auth__pb2.LoginResponse.SerializeToString,
+            ),
+            'VerifyGoogleToken': grpc.unary_unary_rpc_method_handler(
+                    servicer.VerifyGoogleToken,
+                    request_deserializer=auth__pb2.VerifyGoogleTokenRequest.FromString,
+                    response_serializer=auth__pb2.OAuthProfileResponse.SerializeToString,
+            ),
+            'VerifyFacebookToken': grpc.unary_unary_rpc_method_handler(
+                    servicer.VerifyFacebookToken,
+                    request_deserializer=auth__pb2.VerifyFacebookTokenRequest.FromString,
+                    response_serializer=auth__pb2.OAuthProfileResponse.SerializeToString,
             ),
             'GoogleSignIn': grpc.unary_unary_rpc_method_handler(
                     servicer.GoogleSignIn,
@@ -227,7 +301,39 @@ def add_AuthServiceServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class AuthService:
-    """Missing associated documentation comment in .proto file."""
+    """=============================================================================
+    Auth Service — UUID-based credentials (auth.auth_users)
+    Profile data lives in user_service; gateway orchestrates registration.
+    =============================================================================
+
+    """
+
+    @staticmethod
+    def RegisterCredentials(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/auth.AuthService/RegisterCredentials',
+            auth__pb2.RegisterCredentialsRequest.SerializeToString,
+            auth__pb2.GenericResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
 
     @staticmethod
     def Login(request,
@@ -246,6 +352,87 @@ class AuthService:
             '/auth.AuthService/Login',
             auth__pb2.LoginRequest.SerializeToString,
             auth__pb2.LoginResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def IssueTokens(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/auth.AuthService/IssueTokens',
+            auth__pb2.IssueTokensRequest.SerializeToString,
+            auth__pb2.LoginResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def VerifyGoogleToken(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/auth.AuthService/VerifyGoogleToken',
+            auth__pb2.VerifyGoogleTokenRequest.SerializeToString,
+            auth__pb2.OAuthProfileResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def VerifyFacebookToken(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/auth.AuthService/VerifyFacebookToken',
+            auth__pb2.VerifyFacebookTokenRequest.SerializeToString,
+            auth__pb2.OAuthProfileResponse.FromString,
             options,
             channel_credentials,
             insecure,

@@ -22,28 +22,25 @@ logger = logging.getLogger(__name__)
 _MENTION_RE = re.compile(r"@\[(?:(p):)?([^:\]]+):([^\]]+)\]")
 
 
-def _viewer_user_id_from_token(token: Optional[str]) -> int:
+def _viewer_user_id_from_token(token: Optional[str]) -> str:
     if not token:
-        return 0
+        return ""
     try:
         payload = decode_jwt_token(token)
-        return int(payload.get("user_id") or payload.get("sub") or 0)
+        return str(payload.get("user_id") or payload.get("sub") or "").strip()
     except Exception:
-        return 0
+        return ""
 
 
-def _extract_mentioned_user_ids(text: Optional[str]) -> List[int]:
+def _extract_mentioned_user_ids(text: Optional[str]) -> List[str]:
     if not text:
         return []
-    ids: List[int] = []
+    ids: List[str] = []
     seen = set()
     for match in _MENTION_RE.finditer(text):
         if match.group(1) == "p":
             continue
-        try:
-            uid = int(match.group(2))
-        except (TypeError, ValueError):
-            continue
+        uid = (match.group(2) or "").strip()
         if uid and uid not in seen:
             seen.add(uid)
             ids.append(uid)
@@ -68,7 +65,7 @@ def _extract_mentioned_property_ids(text: Optional[str]) -> List[str]:
 def _notify_mentioned_users(
     *,
     text: Optional[str],
-    author_id: int,
+    author_id: str,
     author_name: str,
     token: Optional[str],
     title: str,
@@ -102,7 +99,7 @@ def _notify_mentioned_users(
             owner_raw = getattr(prop, "user_id", None) or getattr(prop, "userId", None)
             if owner_raw is None:
                 continue
-            owner_id = int(owner_raw)
+            owner_id = str(owner_raw).strip()
             if not owner_id or owner_id == author_id:
                 continue
             prop_title = getattr(prop, "title", None) or "your property"
@@ -128,23 +125,112 @@ def _notify_mentioned_users(
             )
 
 
-def _resolve_user_profile_photo(user_id: int, token: Optional[str]) -> Optional[str]:
+def _resolve_user_details(user_id: str, token: Optional[str]) -> dict:
+    empty = {
+        "firstName": "",
+        "lastName": "",
+        "email": "",
+        "phone": "",
+        "role": "",
+        "profilePhoto": None,
+    }
     try:
-        user = user_service_client.get_user(int(user_id), token=token)
-        candidate = getattr(user, "profile_photo", None) or None
-        if (not candidate) and getattr(user, "profile_photo_id", 0):
+        user = user_service_client.get_user(str(user_id), token=token)
+        profile_photo = getattr(user, "profile_photo_url", None) or getattr(user, "profile_photo", None) or None
+        if (not profile_photo) and getattr(user, "profile_photo_id", 0):
             try:
                 media = user_service_client.get_media(
-                    media_id=int(user.profile_photo_id), token=token
+                    media_id=str(user.profile_photo_id), token=token
                 )
-                candidate = getattr(media, "media_url", None) or None
+                profile_photo = getattr(media, "media_url", None) or None
             except Exception as e:
                 logger.warning("profile media lookup failed user_id=%s: %s", user_id, e)
-                candidate = None
-        return candidate or None
+        return {
+            "firstName": getattr(user, "first_name", "") or "",
+            "lastName": getattr(user, "last_name", "") or "",
+            "email": getattr(user, "email", "") or "",
+            "phone": getattr(user, "phone", "") or "",
+            "role": getattr(user, "role", "") or "",
+            "profilePhoto": profile_photo or None,
+        }
     except Exception as e:
-        logger.warning("profile photo lookup failed user_id=%s: %s", user_id, e)
-        return None
+        logger.warning("user details lookup failed user_id=%s: %s", user_id, e)
+        return empty
+
+
+def _batch_user_details(user_ids: List[str], token: Optional[str]) -> Dict[str, dict]:
+    unique_ids = [uid for uid in {str(u).strip() for u in user_ids if u}]
+    out: Dict[str, dict] = {
+        uid: {
+            "firstName": "",
+            "lastName": "",
+            "email": "",
+            "phone": "",
+            "role": "",
+            "profilePhoto": None,
+        }
+        for uid in unique_ids
+    }
+    if not unique_ids:
+        return out
+
+    workers = min(8, len(unique_ids))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = {
+            pool.submit(_resolve_user_details, uid, token): uid
+            for uid in unique_ids
+        }
+        for fut in as_completed(futures):
+            uid = futures[fut]
+            try:
+                out[uid] = fut.result()
+            except Exception:
+                pass
+    return out
+
+
+def _resolve_user_profile_photo(user_id: str, token: Optional[str]) -> Optional[str]:
+    return _resolve_user_details(user_id, token).get("profilePhoto")
+
+
+def _builder_user_ids(token: Optional[str], builder_user_id: Optional[str] = None) -> List[str]:
+    if builder_user_id:
+        return [str(builder_user_id).strip()]
+    try:
+        result = user_service_client.list_users(search="", page=1, limit=500, token=token)
+        users = getattr(result, "users", None) or []
+        return [
+            str(u.id)
+            for u in users
+            if str(getattr(u, "role", "")).upper() == "BUILDER"
+        ]
+    except Exception as e:
+        logger.warning("builder user lookup failed: %s", e)
+        return []
+
+
+def _apply_user_details_to_post(post: dict, users: Dict[str, dict]) -> None:
+    details = users.get(str(post["userId"]), {})
+    post["userFirstName"] = details.get("firstName", "") or post.get("userFirstName", "")
+    post["userLastName"] = details.get("lastName", "") or post.get("userLastName", "")
+    post["userEmail"] = details.get("email", "") or post.get("userEmail", "")
+    post["userPhone"] = details.get("phone", "") or post.get("userPhone", "")
+    post["userRole"] = details.get("role", "") or post.get("userRole", "")
+    raw = details.get("profilePhoto")
+    post["userProfilePhoto"] = raw
+    post["userProfilePhotoSignedUrl"] = _safe_presign(raw)
+
+
+def _apply_user_details_to_comment(comment: dict, users: Dict[str, dict]) -> None:
+    details = users.get(str(comment["userId"]), {})
+    comment["userFirstName"] = details.get("firstName", "") or comment.get("userFirstName", "")
+    comment["userLastName"] = details.get("lastName", "") or comment.get("userLastName", "")
+    comment["userRole"] = details.get("role", "") or comment.get("userRole", "")
+    raw = details.get("profilePhoto")
+    comment["profilePhoto"] = raw
+    comment["profilePhotoSignedUrl"] = _safe_presign(raw)
+    for reply in comment.get("replies") or []:
+        _apply_user_details_to_comment(reply, users)
 
 
 def _safe_presign(url: Optional[str]) -> Optional[str]:
@@ -157,110 +243,55 @@ def _safe_presign(url: Optional[str]) -> Optional[str]:
         return url
 
 
-def _batch_profile_photos(user_ids: List[int], token: Optional[str]) -> Dict[int, Optional[str]]:
-    """One lookup per unique author (parallel), instead of per post."""
-    unique_ids = [uid for uid in {int(u) for u in user_ids if u}]
-    out: Dict[int, Optional[str]] = {uid: None for uid in unique_ids}
-    if not unique_ids:
-        return out
-
-    workers = min(8, len(unique_ids))
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {
-            pool.submit(_resolve_user_profile_photo, uid, token): uid
-            for uid in unique_ids
-        }
-        for fut in as_completed(futures):
-            uid = futures[fut]
-            try:
-                out[uid] = fut.result()
-            except Exception:
-                out[uid] = None
-    return out
+def _batch_profile_photos(user_ids: List[str], token: Optional[str]) -> Dict[str, Optional[str]]:
+    details = _batch_user_details(user_ids, token)
+    return {uid: info.get("profilePhoto") for uid, info in details.items()}
 
 
-def _media_dict_from_grpc(m) -> dict:
-    uploaded = getattr(m, "uploaded_at", None)
-    media_url = getattr(m, "media_url", None)
-    return {
-        "id": m.id,
-        "mediaType": m.media_type,
-        "mediaUrl": media_url,
-        "mediaOrder": m.media_order,
-        "mediaSize": getattr(m, "media_size", None),
-        "caption": getattr(m, "caption", "") or "",
-        "uploadedAt": datetime.fromtimestamp(uploaded) if uploaded else datetime.utcnow(),
-        "signedUrl": generate_presigned_get_url_from_url(media_url) if media_url else None,
-    }
-
-
-def _post_dict_from_grpc(post) -> dict:
-    return {
-        "id": post.id,
-        "userId": post.user_id,
-        "userFirstName": getattr(post, "user_first_name", "") or "",
-        "userLastName": getattr(post, "user_last_name", "") or "",
-        "userEmail": getattr(post, "user_email", "") or "",
-        "userPhone": getattr(post, "user_phone", "") or "",
-        "userRole": getattr(post, "user_role", "") or "",
-        "title": post.title,
-        "content": post.content,
-        "visibility": post.visibility,
-        "propertyType": getattr(post, "type", "") or "",
-        "location": post.location,
-        "latitude": getattr(post, "latitude", None),
-        "longitude": getattr(post, "longitude", None),
-        "price": post.price,
-        "status": post.status,
-        "createdAt": datetime.fromtimestamp(post.created_at) if post.created_at else datetime.utcnow(),
-        "media": [_media_dict_from_grpc(m) for m in post.media],
-        "likeCount": post.like_count,
-        "commentCount": post.comment_count,
-        "isLiked": bool(getattr(post, "is_liked", False)),
-    }
-
-
-def _enrich_posts_with_profile_photos(posts_data: List[dict], token: Optional[str]) -> List[dict]:
-    photos = _batch_profile_photos([p["userId"] for p in posts_data], token)
-    for p in posts_data:
-        raw = photos.get(int(p["userId"]))
-        p["userProfilePhoto"] = raw
-        p["userProfilePhotoSignedUrl"] = _safe_presign(raw)
+def _enrich_posts_with_users(posts_data: List[dict], token: Optional[str]) -> List[dict]:
+    users = _batch_user_details([p["userId"] for p in posts_data], token)
+    for post in posts_data:
+        _apply_user_details_to_post(post, users)
     return posts_data
 
 
-def _apply_photo_to_comment_dict(comment: dict, photos: Dict[int, Optional[str]]) -> None:
-    raw = photos.get(int(comment["userId"]))
-    comment["profilePhoto"] = raw
-    comment["profilePhotoSignedUrl"] = _safe_presign(raw)
-    for reply in comment.get("replies") or []:
-        reply_raw = photos.get(int(reply["userId"]))
-        reply["profilePhoto"] = reply_raw
-        reply["profilePhotoSignedUrl"] = _safe_presign(reply_raw)
+def _enrich_posts_with_profile_photos(posts_data: List[dict], token: Optional[str]) -> List[dict]:
+    return _enrich_posts_with_users(posts_data, token)
+
+
+def _posts_from_list_result(result: dict, token: Optional[str]) -> List[dict]:
+    posts_data = [p for p in (result.get("posts") or []) if p]
+    if posts_data:
+        _enrich_posts_with_users(posts_data, token)
+    return posts_data
+
+
+def _enrich_comments_with_users(comments_data: List[dict], token: Optional[str]) -> List[dict]:
+    user_ids: List[str] = []
+    for comment in comments_data:
+        user_ids.append(str(comment["userId"]))
+        for reply in comment.get("replies") or []:
+            user_ids.append(str(reply["userId"]))
+    users = _batch_user_details(user_ids, token)
+    for comment in comments_data:
+        _apply_user_details_to_comment(comment, users)
+    return comments_data
 
 
 def _enrich_comments_with_profile_photos(comments_data: List[dict], token: Optional[str]) -> List[dict]:
-    user_ids: List[int] = []
-    for c in comments_data:
-        user_ids.append(int(c["userId"]))
-        for r in c.get("replies") or []:
-            user_ids.append(int(r["userId"]))
-    photos = _batch_profile_photos(user_ids, token)
-    for c in comments_data:
-        _apply_photo_to_comment_dict(c, photos)
-    return comments_data
+    return _enrich_comments_with_users(comments_data, token)
 
 
 @strawberry.type
 class Comment:
-    id: int
-    postId: int
-    userId: int
+    id: str
+    postId: str
+    userId: str
     userFirstName: str
     userLastName: str
     userRole: str
     comment: str
-    parentCommentId: Optional[int]
+    parentCommentId: Optional[str]
     status: str
     addedAt: datetime
     commentedAt: datetime
@@ -301,17 +332,20 @@ class CommentResponse:
     comment: Optional[Comment] = None
 
     @classmethod
-    def from_dict(cls, data: dict):
+    def from_dict(cls, data: dict, token: Optional[str] = None):
+        comment = data.get('comment')
+        if token and comment:
+            _enrich_comments_with_users([comment], token)
         return cls(
             success=data['success'],
             message=data['message'],
-            comment=Comment.from_dict(data.get('comment'))
+            comment=Comment.from_dict(comment)
         )
 
 
 @strawberry.type
 class PostMedia:
-    id: int
+    id: str
     mediaType: str
     mediaUrl: str
     mediaOrder: int
@@ -333,8 +367,8 @@ class PostMediaInput:
 
 @strawberry.type
 class Post:
-    id: int
-    userId: int
+    id: str
+    userId: str
     userFirstName: str
     userLastName: str
     userEmail: str
@@ -356,6 +390,14 @@ class Post:
     userProfilePhoto: Optional[str] = None
     isLiked: bool = False
     userProfilePhotoSignedUrl: Optional[str] = None
+    isAnonymous: bool = False
+    postCode: Optional[str] = None
+    propertyId: Optional[str] = None
+    currency: Optional[str] = "INR"
+    isPinned: bool = False
+    pinnedAt: Optional[datetime] = None
+    shareCount: int = 0
+    viewCount: int = 0
 
     @classmethod
     def from_dict(cls, data: dict):
@@ -403,7 +445,133 @@ class Post:
             userProfilePhoto=photo,
             isLiked=bool(data.get('isLiked', False)),
             userProfilePhotoSignedUrl=signed_photo,
+            isAnonymous=bool(data.get('isAnonymous', False)),
+            postCode=data.get('postCode'),
+            propertyId=data.get('propertyId'),
+            currency=data.get('currency', 'INR'),
+            isPinned=bool(data.get('isPinned', False)),
+            pinnedAt=data.get('pinnedAt'),
+            shareCount=int(data.get('shareCount', 0)),
+            viewCount=int(data.get('viewCount', 0)),
         )
+
+
+@strawberry.type
+class PostListPage:
+    posts: List[Post]
+    totalCount: int
+    page: int
+    totalPages: int
+
+    @classmethod
+    def from_result(cls, result: dict, token: Optional[str]):
+        posts_data = _posts_from_list_result(result, token)
+        return cls(
+            posts=[Post.from_dict(p) for p in posts_data],
+            totalCount=int(result.get("totalCount", 0)),
+            page=int(result.get("page", 1)),
+            totalPages=int(result.get("totalPages", 1)),
+        )
+
+
+@strawberry.type
+class PostLikeUser:
+    userId: str
+    firstName: str
+    lastName: str
+    userRole: str
+    reactionType: str
+    likedAt: Optional[datetime] = None
+
+
+@strawberry.type
+class PostLikeListPage:
+    likes: List[PostLikeUser]
+    totalCount: int
+    page: int
+    totalPages: int
+
+
+@strawberry.type
+class PostShare:
+    id: str
+    shareCode: str
+    postId: str
+    sharedBy: str
+    shareType: str
+    caption: str
+    visibility: str
+    createdAt: datetime
+    post: Optional[Post] = None
+
+
+@strawberry.type
+class PostShareResponse:
+    success: bool
+    message: str
+    share: Optional[PostShare] = None
+
+    @classmethod
+    def from_dict(cls, data: dict, token: Optional[str] = None):
+        share = data.get("share")
+        if token and share:
+            _enrich_shares_with_users([share], token)
+        return cls(
+            success=data["success"],
+            message=data["message"],
+            share=_post_share_from_dict(share) if share else None,
+        )
+
+
+def _enrich_shares_with_users(shares_data: List[dict], token: Optional[str]) -> List[dict]:
+    embedded_posts = [share["post"] for share in shares_data if share.get("post")]
+    if embedded_posts:
+        _enrich_posts_with_users(embedded_posts, token)
+    return shares_data
+
+
+def _post_share_from_dict(data: dict) -> PostShare:
+    return PostShare(
+        id=data["id"],
+        shareCode=data.get("shareCode", ""),
+        postId=data.get("postId", ""),
+        sharedBy=data.get("sharedBy", ""),
+        shareType=data.get("shareType", ""),
+        caption=data.get("caption", ""),
+        visibility=data.get("visibility", ""),
+        createdAt=data.get("createdAt") or datetime.utcnow(),
+        post=Post.from_dict(data["post"]) if data.get("post") else None,
+    )
+
+
+@strawberry.type
+class Report:
+    id: str
+    reportCode: str
+    entityType: str
+    entityId: str
+    reportedBy: str
+    reportedUserId: Optional[str]
+    reasonCode: str
+    description: str
+    status: str
+    priority: str
+    createdAt: datetime
+
+
+@strawberry.type
+class ReportResponse:
+    success: bool
+    message: str
+    report: Optional[Report] = None
+
+
+@strawberry.type
+class CheckLikeStatusResponse:
+    success: bool
+    message: str
+    isLiked: bool
+    reactionType: str
 
 
 @strawberry.type
@@ -413,29 +581,31 @@ class PostResponse:
     post: Optional[Post] = None
 
     @classmethod
-    def from_dict(cls, data: dict):
+    def from_dict(cls, data: dict, token: Optional[str] = None):
+        post = data.get('post')
+        if token and post:
+            _enrich_posts_with_users([post], token)
         return cls(
             success=data['success'],
             message=data['message'],
-            post=Post.from_dict(data.get('post'))
+            post=Post.from_dict(post)
         )
 
 
 @strawberry.type
 class Query:
     @strawberry.field
-    def post(self, info: Info, postId: int) -> Optional[Post]:
+    def post(self, info: Info, postId: str) -> Optional[Post]:
         logger.debug(f"Query.post called with postId: {postId}")
         token = get_token(info)
-        result = post_service_client.get_post(post_id=postId, token=token)
-        if result and result.success and result.post:
-            post_data = _post_dict_from_grpc(result.post)
-            _enrich_posts_with_profile_photos([post_data], token)
-            return Post.from_dict(post_data)
-        return None
+        post_data = post_service_client.get_post_data(post_id=postId, token=token)
+        if not post_data:
+            return None
+        _enrich_posts_with_users([post_data], token)
+        return Post.from_dict(post_data)
 
     @strawberry.field
-    def postsByUser(self, info: Info, userId: int, page: int = 1, limit: int = 10) -> List[Post]:
+    def postsByUser(self, info: Info, userId: str, page: int = 1, limit: int = 10) -> List[Post]:
         logger.debug(f"Query.postsByUser called with userId: {userId}, page: {page}, limit: {limit}")
         token = get_token(info)
         viewer_user_id = _viewer_user_id_from_token(token)
@@ -443,14 +613,61 @@ class Query:
             user_id=userId, page=page, limit=limit,
             viewer_user_id=viewer_user_id, token=token
         )
-
-        if not result:
-            logger.error("No result returned")
+        if not result or not result.get("success"):
             return []
+        return [Post.from_dict(p) for p in _posts_from_list_result(result, token)]
 
-        posts_data = [_post_dict_from_grpc(post) for post in result]
-        _enrich_posts_with_profile_photos(posts_data, token)
-        return [Post.from_dict(p) for p in posts_data]
+    @strawberry.field
+    def myPosts(self, info: Info, userId: str, page: int = 1, limit: int = 10) -> PostListPage:
+        token = get_token(info)
+        result = post_service_client.get_my_posts(user_id=userId, page=page, limit=limit, token=token)
+        return PostListPage.from_result(result, token)
+
+    @strawberry.field
+    def publicPosts(self, info: Info, page: int = 1, limit: int = 20) -> PostListPage:
+        token = get_token(info)
+        viewer_user_id = _viewer_user_id_from_token(token)
+        result = post_service_client.get_public_posts(
+            page=page, limit=limit, viewer_user_id=viewer_user_id, token=token
+        )
+        return PostListPage.from_result(result, token)
+
+    @strawberry.field
+    def propertyPosts(self, info: Info, propertyId: str, page: int = 1, limit: int = 10) -> PostListPage:
+        token = get_token(info)
+        viewer_user_id = _viewer_user_id_from_token(token)
+        result = post_service_client.get_property_posts(
+            property_id=propertyId, page=page, limit=limit,
+            viewer_user_id=viewer_user_id, token=token
+        )
+        return PostListPage.from_result(result, token)
+
+    @strawberry.field
+    def builderPosts(
+        self, info: Info,
+        builderUserId: Optional[str] = None,
+        page: int = 1,
+        limit: int = 10,
+    ) -> PostListPage:
+        token = get_token(info)
+        viewer_user_id = _viewer_user_id_from_token(token)
+        if builderUserId:
+            result = post_service_client.get_builder_posts(
+                builder_user_id=builderUserId,
+                page=page, limit=limit,
+                viewer_user_id=viewer_user_id, token=token,
+            )
+        else:
+            builder_ids = _builder_user_ids(token)
+            if not builder_ids:
+                return PostListPage(posts=[], totalCount=0, page=page, totalPages=0)
+            result = post_service_client.get_builder_posts(
+                page=page, limit=limit,
+                viewer_user_id=viewer_user_id,
+                user_ids=builder_ids,
+                token=token,
+            )
+        return PostListPage.from_result(result, token)
 
     @strawberry.field
     def searchPosts(
@@ -460,6 +677,8 @@ class Query:
         minPrice: Optional[float] = None,
         maxPrice: Optional[float] = None,
         status: Optional[str] = None,
+        query: Optional[str] = None,
+        hashtag: Optional[str] = None,
         page: int = 1,
         limit: int = 10
     ) -> List[Post]:
@@ -473,6 +692,8 @@ class Query:
                 min_price=minPrice,
                 max_price=maxPrice,
                 status=status,
+                query=query,
+                hashtag=hashtag,
                 page=page,
                 limit=limit,
                 viewer_user_id=viewer_user_id,
@@ -486,8 +707,8 @@ class Query:
                 str(e),
             ).to_graphql_error()
 
-        if not result or not result.success:
-            msg = getattr(result, "message", None) or "No posts returned"
+        if not result or not result.get("success"):
+            msg = result.get("message") if result else "No posts returned"
             logger.error(f"searchPosts unsuccessful: {msg}")
             raise REException(
                 "POSTS_SEARCH_FAILED",
@@ -495,9 +716,7 @@ class Query:
                 msg,
             ).to_graphql_error()
 
-        posts_data = [_post_dict_from_grpc(post) for post in result.posts]
-        _enrich_posts_with_profile_photos(posts_data, token)
-        posts = [Post.from_dict(post) for post in posts_data]
+        posts = [Post.from_dict(p) for p in _posts_from_list_result(result, token)]
         logger.debug(f"Returning {len(posts)} posts")
         return posts
 
@@ -510,23 +729,70 @@ class Query:
                 limit=limit, viewer_user_id=viewer_user_id, token=token
             )
         except Exception as e:
-            # Sidebar widget — never hard-fail the home page (often races with searchPosts)
             logger.warning("trendingPosts failed: %s", e)
             return []
-        if not result or not result.success:
+        if not result or not result.get("success"):
             return []
         try:
-            posts_data = [_post_dict_from_grpc(post) for post in result.posts]
-            # Sidebar only needs id/title/counts — skip S3 + user-service fan-out
-            return [Post.from_dict(p) for p in posts_data]
+            return [Post.from_dict(p) for p in _posts_from_list_result(result, token)]
         except Exception as e:
             logger.warning("trendingPosts map failed: %s", e)
             return []
 
     @strawberry.field
+    def postLikes(self, info: Info, postId: str, page: int = 1, limit: int = 20) -> PostLikeListPage:
+        token = get_token(info)
+        result = post_service_client.get_post_likes(post_id=postId, page=page, limit=limit, token=token)
+        likes_data = [
+            {
+                "userId": like["userId"],
+                "firstName": like.get("firstName", ""),
+                "lastName": like.get("lastName", ""),
+                "userRole": like.get("userRole", ""),
+                "reactionType": like.get("reactionType", "LIKE"),
+                "likedAt": like.get("likedAt"),
+            }
+            for like in (result.get("likes") or [])
+        ]
+        users = _batch_user_details([like["userId"] for like in likes_data], token)
+        for like in likes_data:
+            details = users.get(str(like["userId"]), {})
+            like["firstName"] = details.get("firstName", "") or like.get("firstName", "")
+            like["lastName"] = details.get("lastName", "") or like.get("lastName", "")
+            like["userRole"] = details.get("role", "") or like.get("userRole", "")
+        likes = [
+            PostLikeUser(
+                userId=like["userId"],
+                firstName=like.get("firstName", ""),
+                lastName=like.get("lastName", ""),
+                userRole=like.get("userRole", ""),
+                reactionType=like.get("reactionType", "LIKE"),
+                likedAt=like.get("likedAt"),
+            )
+            for like in likes_data
+        ]
+        return PostLikeListPage(
+            likes=likes,
+            totalCount=int(result.get("totalCount", 0)),
+            page=int(result.get("page", 1)),
+            totalPages=int(result.get("totalPages", 1)),
+        )
+
+    @strawberry.field
+    def checkLikeStatus(self, info: Info, postId: str, userId: str) -> CheckLikeStatusResponse:
+        token = get_token(info)
+        result = post_service_client.check_like_status(post_id=postId, user_id=userId, token=token)
+        return CheckLikeStatusResponse(
+            success=bool(result.get("success")),
+            message=result.get("message", ""),
+            isLiked=bool(result.get("isLiked")),
+            reactionType=result.get("reactionType", ""),
+        )
+
+    @strawberry.field
     def postComments(
         self, info: Info,
-        postId: int,
+        postId: str,
         page: int = 1,
         limit: int = 10
     ) -> List[Comment]:
@@ -534,48 +800,63 @@ class Query:
         token = get_token(info)
         result = post_service_client.get_comments(post_id=postId, page=page, limit=limit, token=token)
 
-        if not result or not result.success:
+        if not result.get("success"):
             return []
 
-        comments_data = []
-        for comment in result.comments:
-            comment_dict = {
-                'id': comment.id,
-                'postId': comment.post_id,
-                'userId': comment.user_id,
-                'userFirstName': comment.user_first_name,
-                'userLastName': comment.user_last_name,
-                'userRole': comment.user_role,
-                'comment': comment.comment,
-                'parentCommentId': comment.parent_comment_id if comment.parent_comment_id != 0 else None,
-                'status': comment.status,
-                'addedAt': datetime.fromtimestamp(comment.added_at),
-                'commentedAt': datetime.fromtimestamp(comment.commented_at),
-                'editedAt': datetime.fromtimestamp(comment.edited_at) if getattr(comment, 'edited_at', 0) else None,
-                'replies': [
-                    {
-                        'id': r.id,
-                        'postId': r.post_id,
-                        'userId': r.user_id,
-                        'userFirstName': r.user_first_name,
-                        'userLastName': r.user_last_name,
-                        'userRole': r.user_role,
-                        'comment': r.comment,
-                        'parentCommentId': r.parent_comment_id,
-                        'status': r.status,
-                        'addedAt': datetime.fromtimestamp(r.added_at),
-                        'commentedAt': datetime.fromtimestamp(r.commented_at),
-                        'editedAt': datetime.fromtimestamp(r.edited_at) if getattr(r, 'edited_at', 0) else None,
-                        'replies': [],
-                        'likeCount': r.like_count
-                    } for r in comment.replies
-                ],
-                'likeCount': comment.like_count
-            }
-            comments_data.append(comment_dict)
+        comments_data = result.get("comments") or []
+        _enrich_comments_with_users(comments_data, token)
+        return [Comment.from_dict(comment) for comment in comments_data if comment]
 
-        _enrich_comments_with_profile_photos(comments_data, token)
-        return [Comment.from_dict(comment) for comment in comments_data]
+    @strawberry.field
+    def comment(self, info: Info, commentId: str) -> Optional[Comment]:
+        token = get_token(info)
+        result = post_service_client.get_comment(comment_id=commentId, token=token)
+        if not result.get("success") or not result.get("comment"):
+            return None
+        comments_data = [result["comment"]]
+        _enrich_comments_with_users(comments_data, token)
+        return Comment.from_dict(comments_data[0])
+
+    @strawberry.field
+    def commentReplies(self, info: Info, commentId: str, page: int = 1, limit: int = 10) -> List[Comment]:
+        token = get_token(info)
+        result = post_service_client.get_replies(comment_id=commentId, page=page, limit=limit, token=token)
+        if not result.get("success"):
+            return []
+        comments_data = result.get("comments") or []
+        _enrich_comments_with_users(comments_data, token)
+        return [Comment.from_dict(c) for c in comments_data if c]
+
+    @strawberry.field
+    def myReports(self, info: Info, reportedBy: str, page: int = 1, limit: int = 20) -> List[Report]:
+        token = get_token(info)
+        result = post_service_client.get_my_reports(reported_by=reportedBy, page=page, limit=limit, token=token)
+        reports = []
+        for r in result.get("reports") or []:
+            if not r:
+                continue
+            reports.append(Report(
+                id=r["id"],
+                reportCode=r.get("reportCode", ""),
+                entityType=r.get("entityType", ""),
+                entityId=r.get("entityId", ""),
+                reportedBy=r.get("reportedBy", ""),
+                reportedUserId=r.get("reportedUserId"),
+                reasonCode=r.get("reasonCode", ""),
+                description=r.get("description", ""),
+                status=r.get("status", ""),
+                priority=r.get("priority", ""),
+                createdAt=r.get("createdAt") or datetime.utcnow(),
+            ))
+        return reports
+
+    @strawberry.field
+    def sharedPosts(self, info: Info, userId: str, page: int = 1, limit: int = 10) -> List[PostShare]:
+        token = get_token(info)
+        result = post_service_client.get_shared_posts(user_id=userId, page=page, limit=limit, token=token)
+        shares_data = [s for s in (result.get("shares") or []) if s]
+        _enrich_shares_with_users(shares_data, token)
+        return [_post_share_from_dict(s) for s in shares_data]
 
 
 @strawberry.type
@@ -596,7 +877,7 @@ class Mutation:
     @strawberry.mutation
     def createPost(
         self, info: Info,
-        userId: int,
+        userId: str,
         title: str,
         content: str,
         visibility: str,
@@ -606,6 +887,9 @@ class Mutation:
         status: str,
         latitude: typing.Optional[float] = None,
         longitude: typing.Optional[float] = None,
+        propertyId: typing.Optional[str] = None,
+        currency: typing.Optional[str] = "INR",
+        isAnonymous: bool = False,
         media: typing.Optional[typing.List[PostMediaInput]] = None
     ) -> PostResponse:
         logger.debug(f"Mutation.createPost called with userId: {userId}, title: {title}")
@@ -621,6 +905,9 @@ class Mutation:
             longitude=longitude,
             price=price,
             status=status,
+            property_id=propertyId,
+            currency=currency,
+            is_anonymous=isAnonymous,
             media=media or [],
             token=token
         )
@@ -630,7 +917,7 @@ class Mutation:
             post_id = post_obj.get("id") if isinstance(post_obj, dict) else None
             author_name = "Someone"
             try:
-                author = user_service_client.get_user(int(userId), token=token)
+                author = user_service_client.get_user(str(userId), token=token)
                 first = getattr(author, "first_name", "") or ""
                 last = getattr(author, "last_name", "") or ""
                 author_name = f"{first} {last}".strip() or author_name
@@ -638,19 +925,19 @@ class Mutation:
                 pass
             _notify_mentioned_users(
                 text=content,
-                author_id=int(userId),
+                author_id=str(userId),
                 author_name=author_name,
                 token=token,
                 title="You were mentioned",
                 message=f"{author_name} mentioned you in a post: {title}",
                 metadata=_json.dumps({"postId": post_id, "postTitle": title}),
             )
-        return PostResponse.from_dict(result)
+        return PostResponse.from_dict(result, token=token)
 
     @strawberry.mutation
     def updatePost(
         self, info: Info,
-        postId: int,
+        postId: str,
         title: Optional[str] = None,
         content: Optional[str] = None,
         visibility: Optional[str] = None,
@@ -676,36 +963,38 @@ class Mutation:
             status=status,
             token=token
         )
-        return PostResponse.from_dict(result)
+        return PostResponse.from_dict(result, token=token)
 
     @strawberry.mutation
-    def deletePost(self, info: Info, postId: int) -> PostResponse:
+    def deletePost(self, info: Info, postId: str) -> PostResponse:
         logger.debug(f"Mutation.deletePost called with postId: {postId}")
         token = get_token(info)
         result = post_service_client.delete_post(post_id=postId, token=token)
-        return PostResponse.from_dict(result)
+        return PostResponse.from_dict(result, token=token)
 
     @strawberry.mutation
-    def likePost(self, info: Info, postId: int, userId: int) -> PostResponse:
+    def likePost(self, info: Info, postId: str, userId: str, reactionType: Optional[str] = "LIKE") -> PostResponse:
         logger.debug(f"Mutation.likePost called with postId: {postId}, userId: {userId}")
         token = get_token(info)
-        result = post_service_client.like_post(post_id=postId, user_id=userId, token=token)
-        return PostResponse.from_dict(result)
+        result = post_service_client.like_post(
+            post_id=postId, user_id=userId, reaction_type=reactionType or "LIKE", token=token
+        )
+        return PostResponse.from_dict(result, token=token)
 
     @strawberry.mutation
-    def unlikePost(self, info: Info, postId: int, userId: int) -> PostResponse:
+    def unlikePost(self, info: Info, postId: str, userId: str) -> PostResponse:
         logger.debug(f"Mutation.unlikePost called with postId: {postId}, userId: {userId}")
         token = get_token(info)
         result = post_service_client.unlike_post(post_id=postId, user_id=userId, token=token)
-        return PostResponse.from_dict(result)
+        return PostResponse.from_dict(result, token=token)
 
     @strawberry.mutation
     def createComment(
         self, info: Info,
-        postId: int,
-        userId: int,
+        postId: str,
+        userId: str,
         comment: str,
-        parentCommentId: Optional[int] = None
+        parentCommentId: Optional[str] = None
     ) -> CommentResponse:
         logger.debug(f"Mutation.createComment called with postId: {postId}, userId: {userId}")
         token = get_token(info)
@@ -720,7 +1009,7 @@ class Mutation:
         if result.get("success"):
             author_name = "Someone"
             try:
-                author = user_service_client.get_user(int(userId), token=token)
+                author = user_service_client.get_user(str(userId), token=token)
                 first = getattr(author, "first_name", "") or ""
                 last = getattr(author, "last_name", "") or ""
                 author_name = f"{first} {last}".strip() or author_name
@@ -730,19 +1019,19 @@ class Mutation:
             comment_id = comment_obj.get("id") if isinstance(comment_obj, dict) else None
             _notify_mentioned_users(
                 text=comment,
-                author_id=int(userId),
+                author_id=str(userId),
                 author_name=author_name,
                 token=token,
                 title="You were mentioned",
                 message=f"{author_name} mentioned you in a comment",
                 metadata=_json.dumps({"postId": postId, "commentId": comment_id}),
             )
-        return CommentResponse.from_dict(result)
+        return CommentResponse.from_dict(result, token=token)
 
     @strawberry.mutation
     def updateComment(
         self, info: Info,
-        commentId: int,
+        commentId: str,
         comment: Optional[str] = None,
         status: Optional[str] = None
     ) -> CommentResponse:
@@ -754,40 +1043,40 @@ class Mutation:
             status=status,
             token=token
         )
-        return CommentResponse.from_dict(result)
+        return CommentResponse.from_dict(result, token=token)
 
     @strawberry.mutation
     def deleteComment(
         self, info: Info,
-        commentId: int
+        commentId: str
     ) -> CommentResponse:
         logger.debug(f"Mutation.deleteComment called with commentId: {commentId}")
         token = get_token(info)
         result = post_service_client.delete_comment(comment_id=commentId, token=token)
-        return CommentResponse.from_dict(result)
+        return CommentResponse.from_dict(result, token=token)
 
     @strawberry.mutation
     def likeComment(
         self, info: Info,
-        commentId: int,
-        userId: int,
-        reactionType: Optional[str] = "like",
+        commentId: str,
+        userId: str,
+        reactionType: Optional[str] = "LIKE",
     ) -> CommentResponse:
         logger.debug(f"Mutation.likeComment called with commentId: {commentId}, userId: {userId}")
         token = get_token(info)
         result = post_service_client.like_comment(
             comment_id=commentId,
             user_id=userId,
-            reaction_type=reactionType or "like",
+            reaction_type=reactionType or "LIKE",
             token=token
         )
-        return CommentResponse.from_dict(result)
+        return CommentResponse.from_dict(result, token=token)
 
     @strawberry.mutation
     def unlikeComment(
         self, info: Info,
-        commentId: int,
-        userId: int
+        commentId: str,
+        userId: str
     ) -> CommentResponse:
         logger.debug(f"Mutation.unlikeComment called with commentId: {commentId}, userId: {userId}")
         token = get_token(info)
@@ -796,29 +1085,206 @@ class Mutation:
             user_id=userId,
             token=token
         )
-        return CommentResponse.from_dict(result)
+        return CommentResponse.from_dict(result, token=token)
 
     @strawberry.mutation
     def addPostMedia(
         self, info: Info,
-        postId: int,
-        media: List[PostMediaInput]
+        postId: str,
+        media: List[PostMediaInput],
+        uploadedBy: Optional[str] = None,
     ) -> PostResponse:
         logger.debug(f"Mutation.addPostMedia called with postId: {postId}")
         token = get_token(info)
         result = post_service_client.add_post_media(
             post_id=postId,
             media=media,
+            uploaded_by=uploadedBy or "",
             token=token
         )
-        return PostResponse.from_dict(result)
+        return PostResponse.from_dict(result, token=token)
 
     @strawberry.mutation
     def deletePostMedia(
         self, info: Info,
-        mediaId: int
+        mediaId: str
     ) -> MediaResponse:
         logger.debug(f"Mutation.deletePostMedia called with mediaId: {mediaId}")
         token = get_token(info)
         result = post_service_client.delete_post_media(media_id=mediaId, token=token)
         return MediaResponse.from_dict(result)
+
+    @strawberry.mutation
+    def pinPost(self, info: Info, postId: str, userId: str) -> PostResponse:
+        token = get_token(info)
+        return PostResponse.from_dict(post_service_client.pin_post(postId, userId, token=token), token=token)
+
+    @strawberry.mutation
+    def unpinPost(self, info: Info, postId: str, userId: str) -> PostResponse:
+        token = get_token(info)
+        return PostResponse.from_dict(post_service_client.unpin_post(postId, userId, token=token), token=token)
+
+    @strawberry.mutation
+    def archivePost(self, info: Info, postId: str, userId: str) -> PostResponse:
+        token = get_token(info)
+        return PostResponse.from_dict(post_service_client.archive_post(postId, userId, token=token), token=token)
+
+    @strawberry.mutation
+    def restoreArchivedPost(self, info: Info, postId: str, userId: str) -> PostResponse:
+        token = get_token(info)
+        return PostResponse.from_dict(post_service_client.restore_archived_post(postId, userId, token=token), token=token)
+
+    @strawberry.mutation
+    def replyComment(
+        self, info: Info,
+        postId: str,
+        userId: str,
+        comment: str,
+        parentCommentId: str,
+    ) -> CommentResponse:
+        token = get_token(info)
+        result = post_service_client.reply_comment(
+            post_id=postId, user_id=userId, comment=comment,
+            parent_comment_id=parentCommentId, token=token,
+        )
+        return CommentResponse.from_dict(result, token=token)
+
+    @strawberry.mutation
+    def reportComment(
+        self, info: Info,
+        commentId: str,
+        reportedBy: str,
+        reportedUserId: Optional[str] = None,
+        reasonCode: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> ReportResponse:
+        token = get_token(info)
+        result = post_service_client.report_comment(
+            comment_id=commentId, reported_by=reportedBy,
+            reported_user_id=reportedUserId or "",
+            reason_code=reasonCode or "", description=description or "",
+            token=token,
+        )
+        report = result.get("report")
+        return ReportResponse(
+            success=bool(result.get("success")),
+            message=result.get("message", ""),
+            report=Report(
+                id=report["id"], reportCode=report.get("reportCode", ""),
+                entityType=report.get("entityType", ""), entityId=report.get("entityId", ""),
+                reportedBy=report.get("reportedBy", ""), reportedUserId=report.get("reportedUserId"),
+                reasonCode=report.get("reasonCode", ""), description=report.get("description", ""),
+                status=report.get("status", ""), priority=report.get("priority", ""),
+                createdAt=report.get("createdAt") or datetime.utcnow(),
+            ) if report else None,
+        )
+
+    @strawberry.mutation
+    def sharePost(
+        self, info: Info,
+        postId: str,
+        sharedBy: str,
+        shareType: Optional[str] = "SHARE",
+        caption: Optional[str] = "",
+        visibility: Optional[str] = "PUBLIC",
+    ) -> PostShareResponse:
+        token = get_token(info)
+        result = post_service_client.share_post(
+            post_id=postId, shared_by=sharedBy, share_type=shareType or "SHARE",
+            caption=caption or "", visibility=visibility or "PUBLIC", token=token,
+        )
+        return PostShareResponse.from_dict(result, token=token)
+
+    @strawberry.mutation
+    def deleteSharedPost(self, info: Info, shareId: str, userId: str) -> MediaResponse:
+        token = get_token(info)
+        result = post_service_client.delete_shared_post(share_id=shareId, user_id=userId, token=token)
+        return MediaResponse.from_dict(result)
+
+    @strawberry.mutation
+    def reportPost(
+        self, info: Info,
+        postId: str,
+        reportedBy: str,
+        reportedUserId: Optional[str] = None,
+        reasonCode: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> ReportResponse:
+        token = get_token(info)
+        result = post_service_client.report_post(
+            post_id=postId, reported_by=reportedBy,
+            reported_user_id=reportedUserId or "",
+            reason_code=reasonCode or "", description=description or "",
+            token=token,
+        )
+        report = result.get("report")
+        return ReportResponse(
+            success=bool(result.get("success")),
+            message=result.get("message", ""),
+            report=Report(
+                id=report["id"], reportCode=report.get("reportCode", ""),
+                entityType=report.get("entityType", ""), entityId=report.get("entityId", ""),
+                reportedBy=report.get("reportedBy", ""), reportedUserId=report.get("reportedUserId"),
+                reasonCode=report.get("reasonCode", ""), description=report.get("description", ""),
+                status=report.get("status", ""), priority=report.get("priority", ""),
+                createdAt=report.get("createdAt") or datetime.utcnow(),
+            ) if report else None,
+        )
+
+    @strawberry.mutation
+    def reportProperty(
+        self, info: Info,
+        propertyId: str,
+        reportedBy: str,
+        reportedUserId: Optional[str] = None,
+        reasonCode: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> ReportResponse:
+        token = get_token(info)
+        result = post_service_client.report_property(
+            property_id=propertyId, reported_by=reportedBy,
+            reported_user_id=reportedUserId or "",
+            reason_code=reasonCode or "", description=description or "",
+            token=token,
+        )
+        report = result.get("report")
+        return ReportResponse(
+            success=bool(result.get("success")),
+            message=result.get("message", ""),
+            report=Report(
+                id=report["id"], reportCode=report.get("reportCode", ""),
+                entityType=report.get("entityType", ""), entityId=report.get("entityId", ""),
+                reportedBy=report.get("reportedBy", ""), reportedUserId=report.get("reportedUserId"),
+                reasonCode=report.get("reasonCode", ""), description=report.get("description", ""),
+                status=report.get("status", ""), priority=report.get("priority", ""),
+                createdAt=report.get("createdAt") or datetime.utcnow(),
+            ) if report else None,
+        )
+
+    @strawberry.mutation
+    def reportUser(
+        self, info: Info,
+        userId: str,
+        reportedBy: str,
+        reasonCode: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> ReportResponse:
+        token = get_token(info)
+        result = post_service_client.report_user(
+            user_id=userId, reported_by=reportedBy,
+            reason_code=reasonCode or "", description=description or "",
+            token=token,
+        )
+        report = result.get("report")
+        return ReportResponse(
+            success=bool(result.get("success")),
+            message=result.get("message", ""),
+            report=Report(
+                id=report["id"], reportCode=report.get("reportCode", ""),
+                entityType=report.get("entityType", ""), entityId=report.get("entityId", ""),
+                reportedBy=report.get("reportedBy", ""), reportedUserId=report.get("reportedUserId"),
+                reasonCode=report.get("reasonCode", ""), description=report.get("description", ""),
+                status=report.get("status", ""), priority=report.get("priority", ""),
+                createdAt=report.get("createdAt") or datetime.utcnow(),
+            ) if report else None,
+        )

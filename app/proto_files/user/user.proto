@@ -2,200 +2,404 @@ syntax = "proto3";
 
 package user;
 
+// =============================================================================
+// User Service — UUID-based, decoupled from auth/post/property services
+// =============================================================================
+
 service UserService {
-  rpc GetUser (UserRequest) returns (UserResponse);
-  rpc ListUsers (ListUsersRequest) returns (ListUsersResponse);
-  rpc CreateUser (CreateUserRequest) returns (UserResponse);
-  rpc UpdateUserLocation (UpdateUserLocationRequest) returns (UserResponse);
-  rpc CreateUserRating (CreateUserRatingRequest) returns (UserRatingResponse);
-  rpc GetUserRatings (UserRequest) returns (UserRatingsResponse);
-  rpc FollowUser (FollowUserRequest) returns (FollowUserResponse);
-  rpc UpdateFollowStatus (FollowUserRequest) returns (FollowUserResponse);
-  rpc GetPendingFollowRequests (UserRequest) returns (UserFollowersResponse);
-  rpc GetUserFollowers (UserRequest) returns (UserFollowersResponse);
-  rpc GetUserFollowing (UserRequest) returns (UserFollowersResponse);
-  rpc CheckFollowingStatus (CheckFollowingRequest) returns (FollowUserResponse);
-  // Media management
-  rpc GetMedia (UserRequest) returns (MediaResponse);
-  rpc UpdateProfilePhoto (UpdateUserPhotoRequest) returns (UserResponse);
-  rpc UpdateCoverPhoto (UpdateUserPhotoRequest) returns (UserResponse);
-  rpc SuggestedUsers (SuggestedUsersRequest) returns (ListUsersResponse);
-  rpc CreateNotification (CreateNotificationRequest) returns (NotificationResponse);
-  rpc ListNotifications (ListNotificationsRequest) returns (ListNotificationsResponse);
-  rpc MarkNotificationRead (MarkNotificationReadRequest) returns (NotificationResponse);
+    // --- User profile management ---
+    rpc CreateUser (CreateUserRequest) returns (UserResponse);
+    rpc GetUser (GetUserRequest) returns (UserResponse);
+    rpc GetUserByEmail (GetUserByEmailRequest) returns (UserResponse);
+    rpc GetUserByPhone (GetUserByPhoneRequest) returns (UserResponse);
+    rpc UpdateVerificationFlags (UpdateVerificationFlagsRequest) returns (UserResponse);
+    rpc GetMyProfile (GetMyProfileRequest) returns (UserResponse);
+    rpc UpdateUserProfile (UpdateUserProfileRequest) returns (UserResponse);
+    rpc DeleteUser (DeleteUserRequest) returns (GenericResponse);
+    rpc UploadProfilePhoto (UploadPhotoRequest) returns (UserResponse);
+    rpc DeleteProfilePhoto (DeletePhotoRequest) returns (UserResponse);
+    rpc UploadCoverPhoto (UploadPhotoRequest) returns (UserResponse);
+    rpc DeleteCoverPhoto (DeletePhotoRequest) returns (UserResponse);
+    rpc SearchUsers (SearchUsersRequest) returns (UserListResponse);
+    rpc GetUserStatistics (GetUserStatisticsRequest) returns (UserStatisticsResponse);
+    rpc ListUsers (SearchUsersRequest) returns (UserListResponse);
+
+    // --- Follow ---
+    rpc FollowUser (FollowUserRequest) returns (FollowResponse);
+    rpc UnfollowUser (UnfollowUserRequest) returns (GenericResponse);
+    rpc GetFollowers (GetFollowListRequest) returns (FollowListResponse);
+    rpc GetFollowing (GetFollowListRequest) returns (FollowListResponse);
+    rpc CheckFollowStatus (CheckFollowStatusRequest) returns (FollowStatusResponse);
+
+    // --- Ratings ---
+    rpc AddUserRating (AddUserRatingRequest) returns (UserRatingResponse);
+    rpc UpdateUserRating (UpdateUserRatingRequest) returns (UserRatingResponse);
+    rpc DeleteUserRating (DeleteUserRatingRequest) returns (GenericResponse);
+    rpc GetUserRatings (GetUserRatingsRequest) returns (UserRatingListResponse);
+    rpc GetRatingSummary (GetRatingSummaryRequest) returns (RatingSummaryResponse);
+    rpc GetMySubmittedRatings (GetMySubmittedRatingsRequest) returns (UserRatingListResponse);
+
+    // --- Legacy / gateway compat ---
+    rpc CreateUserRating (AddUserRatingRequest) returns (UserRatingResponse);
+    rpc GetMedia (GetMediaRequest) returns (MediaResponse);
+    rpc UpdateProfilePhoto (UploadPhotoRequest) returns (UserResponse);
+    rpc UpdateCoverPhoto (UploadPhotoRequest) returns (UserResponse);
+    rpc SuggestedUsers (SuggestedUsersRequest) returns (UserListResponse);
+    rpc CheckFollowingStatus (CheckFollowStatusRequest) returns (FollowStatusResponse);
+    rpc GetUserFollowers (GetFollowListRequest) returns (FollowListResponse);
+    rpc GetUserFollowing (GetFollowListRequest) returns (FollowListResponse);
+    rpc UpdateUserLocation (UpdateUserLocationRequest) returns (UserResponse);
+    rpc UpdateFollowStatus (UpdateFollowStatusRequest) returns (FollowResponse);
+    rpc GetPendingFollowRequests (GetFollowListRequest) returns (FollowListResponse);
+    rpc CreateNotification (CreateNotificationRequest) returns (NotificationResponse);
+    rpc ListNotifications (ListNotificationsRequest) returns (ListNotificationsResponse);
+    rpc MarkNotificationRead (MarkNotificationReadRequest) returns (NotificationResponse);
 }
 
-message UserRequest {
-  int64 id = 1;
+// --- Shared messages ---
+
+message GenericResponse {
+    bool success = 1;
+    string message = 2;
 }
 
-message ListUsersRequest {
-  string search = 1;
-  int32 page = 2;
-  int32 limit = 3;
+message PhotoUpload {
+    string file_path = 1;
+    string file_name = 2;
+    string content_type = 3;
+    string media_url = 4;
 }
 
-message ListUsersResponse {
-  repeated UserResponse users = 1;
-  int32 total = 2;
-}
-
-message CreateUserRequest {
-  string first_name = 1;
-  string last_name = 2;
-  string email = 3;
-  string phone = 4;
-  string password = 5;
-  string role = 6;
-  string address = 7;
-  float latitude = 8;
-  float longitude = 9;
-  string bio = 10;
+message UserStatistics {
+    int32 follower_count = 1;
+    int32 following_count = 2;
+    int32 post_count = 3;
+    int32 property_count = 4;
+    int32 review_count = 5;
+    int32 rating_count = 6;
+    double average_rating = 7;
+    int32 report_count = 8;
 }
 
 message UserResponse {
-  int64 id = 1;
-  string first_name = 2;
-  string last_name = 3;
-  string email = 4;
-  string phone = 5;
-  string profile_photo = 6;
-  string role = 7;
-  string address = 8;
-  float latitude = 9;
-  float longitude = 10;
-  string bio = 11;
-  bool isActive = 12;
-  bool email_verified = 13;
-  bool phone_verified = 14;
-  string created_at = 15;
-  // align with user_service field numbers to receive these values
-  int64 cover_photo_id = 17;
-  int64 profile_photo_id = 18;
+    bool success = 1;
+    string message = 2;
+    string id = 3;
+    string user_code = 4;
+    string first_name = 5;
+    string last_name = 6;
+    string email = 7;
+    string phone = 8;
+    string role = 9;
+    string bio = 10;
+    string profile_photo_id = 11;
+    string cover_photo_id = 12;
+    string profile_photo_url = 13;
+    string cover_photo_url = 14;
+    double latitude = 15;
+    double longitude = 16;
+    bool is_active = 17;
+    bool email_verified = 18;
+    bool phone_verified = 19;
+    int64 created_at = 20;
+    int64 updated_at = 21;
+    UserStatistics statistics = 22;
 }
 
-// Aligned with user_service field numbers so review/rating_type deserialize correctly
-message CreateUserRatingRequest {
-  int64 rated_user_id = 1;
-  int64 rated_by_user_id = 2;
-  int32 rating_value = 3;
-  string review = 4;
-  string rating_type = 5;
+message UserListResponse {
+    bool success = 1;
+    string message = 2;
+    repeated UserResponse users = 3;
+    int32 total_count = 4;
+    int32 page = 5;
+    int32 total_pages = 6;
 }
 
-message UserRatingResponse {
-  int64 id = 1;
-  int64 rated_user_id = 2;
-  int64 rated_by_user_id = 3;
-  int32 rating_value = 4;
-  string review = 5;
-  string rating_type = 6;
-  string created_at = 7;
-  string updated_at = 8;
+// --- User management ---
+
+message CreateUserRequest {
+    string id = 1;
+    string first_name = 2;
+    string last_name = 3;
+    string email = 4;
+    string phone = 5;
+    string role = 6;
+    string bio = 7;
+    double latitude = 8;
+    double longitude = 9;
 }
 
-message UserRatingsResponse {
-  repeated UserRatingResponse ratings = 1;
+message GetUserRequest {
+    string user_id = 1;
 }
 
-message FollowUserRequest {
-  int64 follower_id = 1;
-  int64 following_id = 2;
-  string followee_type = 3;
-  string status = 4;
+message GetUserByEmailRequest {
+    string email = 1;
 }
 
-message FollowUserResponse {
-  int64 id = 1;
-  int64 follower_id = 2;
-  int64 following_id = 3;
-  string followee_type = 4;
-  string status = 5;
-  string followed_at = 6;
+message GetUserByPhoneRequest {
+    string phone = 1;
 }
 
-message UserFollowersResponse {
-  repeated FollowUserResponse followers = 1;
+message UpdateVerificationFlagsRequest {
+    string user_id = 1;
+    optional bool email_verified = 2;
+    optional bool phone_verified = 3;
 }
 
-message CheckFollowingRequest {
-  int64 user_id = 1;
-  int64 following_id = 2;
+message GetMyProfileRequest {
+    string user_id = 1;
 }
 
-// Media messages aligned with user_service
-message MediaRequest {
-  int64 context_id = 1;
-  string context_type = 2;
-  string media_type = 3;
-  string media_url = 4;
-  int32 media_order = 5;
-  int64 media_size = 6;
-  string caption = 7;
-  string file_path = 8;
-  string file_name = 9;
-  string content_type = 10;
+message UpdateUserProfileRequest {
+    string user_id = 1;
+    string first_name = 2;
+    string last_name = 3;
+    string phone = 4;
+    string bio = 5;
+    string role = 6;
+    double latitude = 7;
+    double longitude = 8;
 }
 
-message MediaResponse {
-  int64 id = 1;
-  int64 context_id = 2;
-  string context_type = 3;
-  string media_type = 4;
-  string media_url = 5;
-  int32 media_order = 6;
-  int64 media_size = 7;
-  string caption = 8;
-  string uploaded_at = 9;
+message DeleteUserRequest {
+    string user_id = 1;
 }
 
-message UpdateUserPhotoRequest {
-  int64 user_id = 1;
-  MediaRequest media = 2;
+message UploadPhotoRequest {
+    string user_id = 1;
+    PhotoUpload photo = 2;
+}
+
+message DeletePhotoRequest {
+    string user_id = 1;
+}
+
+message SearchUsersRequest {
+    string search = 1;
+    string role = 2;
+    int32 page = 3;
+    int32 limit = 4;
+}
+
+message GetUserStatisticsRequest {
+    string user_id = 1;
+}
+
+message UserStatisticsResponse {
+    bool success = 1;
+    string message = 2;
+    UserStatistics statistics = 3;
 }
 
 message UpdateUserLocationRequest {
-  int64 user_id = 1;
-  float latitude = 2;
-  float longitude = 3;
+    string user_id = 1;
+    double latitude = 2;
+    double longitude = 3;
 }
+
+// --- Follow ---
+
+message FollowUserRequest {
+    string follower_id = 1;
+    string following_id = 2;
+    string follow_type = 3;
+}
+
+message UnfollowUserRequest {
+    string follower_id = 1;
+    string following_id = 2;
+}
+
+message GetFollowListRequest {
+    string user_id = 1;
+    int32 page = 2;
+    int32 limit = 3;
+}
+
+message FollowResponse {
+    bool success = 1;
+    string message = 2;
+    string id = 3;
+    string follower_id = 4;
+    string following_id = 5;
+    string follow_type = 6;
+    string status = 7;
+    int64 followed_at = 8;
+}
+
+message FollowListResponse {
+    bool success = 1;
+    string message = 2;
+    repeated FollowResponse follows = 3;
+    int32 total_count = 4;
+    int32 page = 5;
+    int32 total_pages = 6;
+}
+
+message CheckFollowStatusRequest {
+    string follower_id = 1;
+    string following_id = 2;
+}
+
+message FollowStatusResponse {
+    bool success = 1;
+    string message = 2;
+    bool is_following = 3;
+    string status = 4;
+    string follow_type = 5;
+}
+
+message UpdateFollowStatusRequest {
+    string follower_id = 1;
+    string following_id = 2;
+    string status = 3;
+}
+
+// --- Ratings ---
+
+message UserRatingResponse {
+    bool success = 1;
+    string message = 2;
+    string id = 3;
+    string rated_user_id = 4;
+    string rated_by = 5;
+    double rating_value = 6;
+    string title = 7;
+    string review = 8;
+    string rating_type = 9;
+    bool is_anonymous = 10;
+    string status = 11;
+    int64 created_at = 12;
+    int64 updated_at = 13;
+}
+
+message UserRatingListResponse {
+    bool success = 1;
+    string message = 2;
+    repeated UserRatingResponse ratings = 3;
+    int32 total_count = 4;
+    int32 page = 5;
+    int32 total_pages = 6;
+}
+
+message AddUserRatingRequest {
+    string rated_user_id = 1;
+    string rated_by = 2;
+    double rating_value = 3;
+    string title = 4;
+    string review = 5;
+    string rating_type = 6;
+    bool is_anonymous = 7;
+}
+
+message UpdateUserRatingRequest {
+    string rating_id = 1;
+    string rated_by = 2;
+    double rating_value = 3;
+    string title = 4;
+    string review = 5;
+    string rating_type = 6;
+    bool is_anonymous = 7;
+}
+
+message DeleteUserRatingRequest {
+    string rating_id = 1;
+    string rated_by = 2;
+}
+
+message GetUserRatingsRequest {
+    string user_id = 1;
+    int32 page = 2;
+    int32 limit = 3;
+}
+
+message GetRatingSummaryRequest {
+    string user_id = 1;
+}
+
+message RatingDistribution {
+    int32 stars = 1;
+    int32 count = 2;
+}
+
+message RatingSummaryResponse {
+    bool success = 1;
+    string message = 2;
+    double average_rating = 3;
+    int32 rating_count = 4;
+    repeated RatingDistribution distribution = 5;
+}
+
+message GetMySubmittedRatingsRequest {
+    string rated_by = 1;
+    int32 page = 2;
+    int32 limit = 3;
+}
+
+// --- Media ---
+
+message GetMediaRequest {
+    string media_id = 1;
+}
+
+message MediaResponse {
+    string id = 1;
+    string entity_id = 2;
+    string entity_type = 3;
+    string media_type = 4;
+    string file_url = 5;
+    string mime_type = 6;
+    int64 file_size = 7;
+    int64 created_at = 8;
+}
+
+// --- Suggested users ---
 
 message SuggestedUsersRequest {
-  int64 user_id = 1;
-  int32 limit = 2;
+    string user_id = 1;
+    int32 limit = 2;
 }
 
+// --- Notifications (legacy) ---
+
 message CreateNotificationRequest {
-  int64 user_id = 1;
-  string title = 2;
-  string message = 3;
-  string type = 4;
-  string metadata = 5;
+    string user_id = 1;
+    string title = 2;
+    string message = 3;
+    string type = 4;
+    string metadata = 5;
 }
 
 message NotificationResponse {
-  int64 id = 1;
-  int64 user_id = 2;
-  string title = 3;
-  string message = 4;
-  string type = 5;
-  bool read = 6;
-  string created_at = 7;
-  string metadata = 8;
+    bool success = 1;
+    string message = 2;
+    string id = 3;
+    string user_id = 4;
+    string title = 5;
+    string notification_message = 6;
+    string type = 7;
+    bool read = 8;
+    int64 created_at = 9;
+    string metadata = 10;
 }
 
 message ListNotificationsRequest {
-  int64 user_id = 1;
-  int32 page = 2;
-  int32 limit = 3;
+    string user_id = 1;
+    int32 page = 2;
+    int32 limit = 3;
 }
 
 message ListNotificationsResponse {
-  repeated NotificationResponse notifications = 1;
-  int32 total = 2;
+    bool success = 1;
+    string message = 2;
+    repeated NotificationResponse notifications = 3;
+    int32 total_count = 4;
+    int32 page = 5;
+    int32 total_pages = 6;
 }
 
 message MarkNotificationReadRequest {
-  int64 notification_id = 1;
-  int64 user_id = 2;
+    string notification_id = 1;
+    string user_id = 2;
 }

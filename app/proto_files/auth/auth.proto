@@ -2,83 +2,117 @@ syntax = "proto3";
 
 package auth;
 
+// =============================================================================
+// Auth Service — UUID-based credentials (auth.auth_users)
+// Profile data lives in user_service; gateway orchestrates registration.
+// =============================================================================
+
 service AuthService {
-  rpc Login(LoginRequest) returns (LoginResponse);
-  rpc GoogleSignIn(GoogleSignInRequest) returns (LoginResponse);
-  rpc FacebookSignIn(FacebookSignInRequest) returns (LoginResponse);
-  rpc SendMobileOTP(MobileOTPRequest) returns (OTPResponse);
-  rpc VerifyMobileOTP(VerifyMobileOTPRequest) returns (LoginResponse);
-  rpc Logout(LogoutRequest) returns (LogoutResponse);
-  rpc SendOTP(OTPRequest) returns (OTPResponse);
-  rpc VerifyOTP(VerifyOTPRequest) returns (VerifyOTPResponse);
-  rpc ForgotPassword(ForgotPasswordRequest) returns (ForgotPasswordResponse);
-  rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse);
-  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+  rpc RegisterCredentials (RegisterCredentialsRequest) returns (GenericResponse);
+  rpc Login (LoginRequest) returns (LoginResponse);
+  rpc IssueTokens (IssueTokensRequest) returns (LoginResponse);
+  rpc VerifyGoogleToken (VerifyGoogleTokenRequest) returns (OAuthProfileResponse);
+  rpc VerifyFacebookToken (VerifyFacebookTokenRequest) returns (OAuthProfileResponse);
+  rpc GoogleSignIn (GoogleSignInRequest) returns (LoginResponse);
+  rpc FacebookSignIn (FacebookSignInRequest) returns (LoginResponse);
+  rpc SendMobileOTP (MobileOTPRequest) returns (OTPResponse);
+  rpc VerifyMobileOTP (VerifyMobileOTPRequest) returns (LoginResponse);
+  rpc Logout (LogoutRequest) returns (LogoutResponse);
+  rpc SendOTP (OTPRequest) returns (OTPResponse);
+  rpc VerifyOTP (VerifyOTPRequest) returns (VerifyOTPResponse);
+  rpc ForgotPassword (ForgotPasswordRequest) returns (ForgotPasswordResponse);
+  rpc ResetPassword (ResetPasswordRequest) returns (ResetPasswordResponse);
+  rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse);
+}
+
+message GenericResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message AuthUserInfo {
+  string user_id = 1;
+  string email = 2;
+  string role = 3;
+  string auth_provider = 4;
+  string status = 5;
+}
+
+message RegisterCredentialsRequest {
+  string user_id = 1;
+  string password = 2;
+  string auth_provider = 3;
 }
 
 message LoginRequest {
-  string email = 1;
+  string user_id = 1;
   string password = 2;
+  string email = 3;
+  string role = 4;
+}
+
+message IssueTokensRequest {
+  string user_id = 1;
+  string email = 2;
+  string role = 3;
+}
+
+message VerifyGoogleTokenRequest {
+  string id_token = 1;
+}
+
+message VerifyFacebookTokenRequest {
+  string access_token = 1;
+}
+
+message OAuthProfileResponse {
+  bool success = 1;
+  string message = 2;
+  string email = 3;
+  string first_name = 4;
+  string last_name = 5;
+  string picture_url = 6;
+  bool email_verified = 7;
 }
 
 message GoogleSignInRequest {
   string id_token = 1;
-  string role = 2;
-  string address = 3;
-  float latitude = 4;
-  float longitude = 5;
-  string bio = 6;
-  string phone = 7;
+  string user_id = 2;
+  string email = 3;
+  string role = 4;
 }
 
 message FacebookSignInRequest {
   string access_token = 1;
-  string role = 2;
-  string address = 3;
-  float latitude = 4;
-  float longitude = 5;
-  string bio = 6;
-  string phone = 7;
+  string user_id = 2;
+  string email = 3;
+  string role = 4;
 }
 
 message MobileOTPRequest {
-  string phone = 1;
+  string user_id = 1;
+  string phone = 2;
 }
 
 message VerifyMobileOTPRequest {
-  string phone = 1;
-  string otp_code = 2;
+  string user_id = 1;
+  string phone = 2;
+  string otp_code = 3;
+  string email = 4;
+  string role = 5;
 }
 
 message LoginResponse {
   string token = 1;
   string refresh_token = 2;
-  UserInfo user_info = 3;  // Added user info in response
-}
-
-message UserInfo {
-  int64 id = 1;
-  string first_name = 2;
-  string last_name = 3;
-  string email = 4;
-  string phone = 5;
-  string profile_photo = 6;
-  string role = 7;
-  string address = 8;
-  float latitude = 9;
-  float longitude = 10;
-  string bio = 11;
-  bool isactive = 12;
-  bool email_verified = 13;
-  bool phone_verified = 14;
-  string last_login_at = 15;
-  string created_at = 16;
+  AuthUserInfo auth_user = 3;
 }
 
 message OTPRequest {
-  string email = 1;
-  string phone = 2;  // Optional phone number for SMS
-  OTPType type = 3;  // Purpose of OTP
+  string user_id = 1;
+  string email = 2;
+  string phone = 3;
+  OTPType type = 4;
 }
 
 enum OTPType {
@@ -89,45 +123,48 @@ enum OTPType {
 
 message OTPResponse {
   bool success = 1;
-  string message = 2;  // Added for more detailed response
-  repeated string channels = 3;  // List of channels where OTP was sent (email, sms)
+  string message = 2;
+  repeated string channels = 3;
 }
 
 message VerifyOTPRequest {
-  string email = 1;
-  string otp_code = 2;
-  OTPType type = 3;  // Purpose of verification
+  string user_id = 1;
+  string email = 2;
+  string otp_code = 3;
+  OTPType type = 4;
 }
 
 message VerifyOTPResponse {
-  string token = 1;
-  UserInfo user_info = 2;  // Added user info in response
-  bool success = 3;
-  string message = 4;  // Added for more detailed response
+  bool success = 1;
+  string message = 2;
+  string token = 3;
+  AuthUserInfo auth_user = 4;
 }
 
 message ForgotPasswordRequest {
-  string email = 1;
-  string phone = 2;  // Optional phone number for SMS verification
+  string user_id = 1;
+  string email = 2;
+  string phone = 3;
 }
 
 message ForgotPasswordResponse {
   bool success = 1;
-  string message = 2;  // Added for more detailed response
-  repeated string channels = 3;  // List of channels where reset instructions were sent
+  string message = 2;
+  repeated string channels = 3;
 }
 
 message ResetPasswordRequest {
-  string email = 1;
-  string otp_code = 2;
-  string new_password = 3;
-  string confirm_password = 4;  // Added password confirmation
+  string user_id = 1;
+  string email = 2;
+  string otp_code = 3;
+  string new_password = 4;
+  string confirm_password = 5;
 }
 
 message ResetPasswordResponse {
   bool success = 1;
-  string message = 2;  // Added for more detailed response
-  UserInfo user_info = 3;  // Optional user info after reset
+  string message = 2;
+  AuthUserInfo auth_user = 3;
 }
 
 message LogoutRequest {
@@ -146,6 +183,6 @@ message ValidateTokenRequest {
 
 message ValidateTokenResponse {
   bool valid = 1;
-  UserInfo user_info = 2;
-  string message = 3;
+  string message = 2;
+  AuthUserInfo auth_user = 3;
 }
