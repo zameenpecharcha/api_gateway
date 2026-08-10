@@ -92,6 +92,38 @@ class ChatDownloadUrlResponse:
 
 
 @strawberry.type
+class ConversationDetailGQL:
+    conversation_id: str
+    type: int
+    participants: typing.List[str]
+    group_name: str
+    group_photo: str
+    description: str
+    member_count: int
+    last_message: str
+    last_message_id: str
+    last_message_at: BigInt
+    created_by: str
+    created_at: BigInt
+
+
+@strawberry.type
+class GroupMemberGQL:
+    id: str
+    conversation_id: str
+    user_id: str
+    role: str
+    joined_at: BigInt
+    status: str
+
+
+@strawberry.type
+class GetConversationResponseGQL:
+    conversation: typing.Optional[ConversationDetailGQL]
+    members: typing.List[GroupMemberGQL]
+
+
+@strawberry.type
 class ChatMessage:
     """A single persisted chat message returned by getMessages."""
     room_id: str
@@ -315,6 +347,104 @@ class Query:
             raise
 
     @strawberry.field
+    def get_conversation(
+        self,
+        info: Info,
+        conversation_id: str,
+        user_id: typing.Optional[str] = "",
+    ) -> GetConversationResponseGQL:
+        """Get single conversation details and members via gRPC."""
+        try:
+            token = _authorization_from_info(info)
+            resp = chat_service_client.get_conversation(conversation_id, user_id=user_id or "", token=token)
+            conv_detail = None
+            if resp.HasField("conversation"):
+                c = resp.conversation
+                conv_detail = ConversationDetailGQL(
+                    conversation_id=c.conversation_id,
+                    type=int(c.type),
+                    participants=list(c.participants),
+                    group_name=c.group_name,
+                    group_photo=c.group_photo,
+                    description=c.description,
+                    member_count=c.member_count,
+                    last_message=c.last_message,
+                    last_message_id=c.last_message_id,
+                    last_message_at=c.last_message_at,
+                    created_by=c.created_by,
+                    created_at=c.created_at,
+                )
+            members = [
+                GroupMemberGQL(
+                    id=m.id,
+                    conversation_id=m.conversation_id,
+                    user_id=m.user_id,
+                    role=m.role,
+                    joined_at=m.joined_at,
+                    status=m.status,
+                )
+                for m in resp.members
+            ]
+            return GetConversationResponseGQL(conversation=conv_detail, members=members)
+        except grpc.RpcError as e:
+            log_msg("error", f"GetConversation error: {str(e)}")
+            raise
+
+    @strawberry.field
+    def search_messages(
+        self,
+        info: Info,
+        conversation_id: str,
+        query: str,
+        limit: typing.Optional[int] = 50,
+    ) -> typing.List[ChatMessage]:
+        """Search messages within a conversation via gRPC."""
+        try:
+            token = _authorization_from_info(info)
+            resp = chat_service_client.search_messages(conversation_id, query, limit=limit or 50, token=token)
+            return [
+                ChatMessage(
+                    room_id=m.room_id,
+                    user_id=m.user_id,
+                    message_id=m.message_id,
+                    text=m.text,
+                    sent_at=m.sent_at_unix_ms,
+                    delivered_at=m.delivered_at_unix_ms,
+                    type=m.type,
+                    media_key=m.media_key,
+                    media_name=m.media_name,
+                    media_size_bytes=m.media_size_bytes,
+                    media_mime_type=m.media_mime_type,
+                    media_url=m.media_url,
+                    reply_to_message_id=m.reply_to_message_id,
+                    is_deleted=m.is_deleted,
+                    edited_at=getattr(m, "edited_at_unix_ms", 0) or 0,
+                    event_type=m.event_type,
+                    status=m.status,
+                )
+                for m in resp.messages
+            ]
+        except grpc.RpcError as e:
+            log_msg("error", f"SearchMessages error: {str(e)}")
+            raise
+
+    @strawberry.field
+    def get_unread_count(
+        self,
+        info: Info,
+        user_id: str,
+        conversation_id: typing.Optional[str] = "",
+    ) -> int:
+        """Get unread message count for a user via gRPC."""
+        try:
+            token = _authorization_from_info(info)
+            resp = chat_service_client.get_unread_count(user_id, conversation_id=conversation_id or "", token=token)
+            return resp.total_unread_count
+        except grpc.RpcError as e:
+            log_msg("error", f"GetUnreadCount error: {str(e)}")
+            return 0
+
+    @strawberry.field
     def get_presence(
         self,
         info: Info,
@@ -380,9 +510,7 @@ class Mutation:
         user_b: str,
     ) -> ChatRoomResponse:
         """
-        Create (or return the existing) DM room between two users.
-        The room_id is deterministic — calling this twice for the same pair
-        returns the same room.
+        Create (or return the existing) DM room between two users via gRPC.
         """
         try:
             token = _authorization_from_info(info)
@@ -400,15 +528,245 @@ class Mutation:
         created_by: str,
         name: str,
         member_ids: typing.List[str],
+        group_photo: typing.Optional[str] = "",
+        description: typing.Optional[str] = "",
     ) -> ChatRoomResponse:
-        """Create a new group chat room. Requires at least 2 member_ids."""
+        """Create a new group chat room via gRPC."""
         try:
             token = _authorization_from_info(info)
             log_msg("info", f"CreateGroupRoom name={name} by={created_by}")
+            if group_photo or description:
+                resp = chat_service_client.create_group(name, created_by, member_ids, group_photo=group_photo or "", description=description or "", token=token)
+                return ChatRoomResponse(room_id=resp.conversation.conversation_id, name=resp.conversation.group_name)
             resp = chat_service_client.create_group_room(name, created_by, member_ids, token=token)
             return ChatRoomResponse(room_id=resp.room_id, name=resp.name)
         except grpc.RpcError as e:
             log_msg("error", f"CreateGroupRoom error: {str(e)}")
+            raise
+
+    @strawberry.mutation
+    def send_message(
+        self,
+        info: Info,
+        conversation_id: str,
+        sender_id: str,
+        content: str = "",
+        message_type: int = 0,
+        media_key: str = "",
+        media_name: str = "",
+        media_size_bytes: int = 0,
+        media_mime_type: str = "",
+        reply_to_message_id: str = "",
+    ) -> ChatMessage:
+        """Send a message via gRPC Unary API."""
+        try:
+            token = _authorization_from_info(info)
+            resp = chat_service_client.send_message(
+                conversation_id=conversation_id,
+                sender_id=sender_id,
+                content=content,
+                message_type=message_type,
+                media_key=media_key,
+                media_name=media_name,
+                media_size_bytes=media_size_bytes,
+                media_mime_type=media_mime_type,
+                reply_to_message_id=reply_to_message_id,
+                token=token,
+            )
+            m = resp.message
+            return ChatMessage(
+                room_id=m.room_id,
+                user_id=m.user_id,
+                message_id=m.message_id,
+                text=m.text,
+                sent_at=m.sent_at_unix_ms,
+                delivered_at=m.delivered_at_unix_ms,
+                type=m.type,
+                media_key=m.media_key,
+                media_name=m.media_name,
+                media_size_bytes=m.media_size_bytes,
+                media_mime_type=m.media_mime_type,
+                media_url=m.media_url,
+                reply_to_message_id=m.reply_to_message_id,
+                is_deleted=m.is_deleted,
+                edited_at=getattr(m, "edited_at_unix_ms", 0) or 0,
+                event_type=m.event_type,
+                status=m.status,
+            )
+        except grpc.RpcError as e:
+            log_msg("error", f"SendMessage error: {str(e)}")
+            raise
+
+    @strawberry.mutation
+    def delete_message(
+        self,
+        info: Info,
+        message_id: str,
+        user_id: str,
+        conversation_id: typing.Optional[str] = "",
+    ) -> bool:
+        """Soft delete a message via gRPC."""
+        try:
+            token = _authorization_from_info(info)
+            resp = chat_service_client.delete_message(message_id, user_id, conversation_id=conversation_id or "", token=token)
+            return resp.success
+        except grpc.RpcError as e:
+            log_msg("error", f"DeleteMessage error: {str(e)}")
+            raise
+
+    @strawberry.mutation
+    def edit_message(
+        self,
+        info: Info,
+        message_id: str,
+        user_id: str,
+        new_content: str,
+        conversation_id: typing.Optional[str] = "",
+    ) -> ChatMessage:
+        """Edit a message via gRPC."""
+        try:
+            token = _authorization_from_info(info)
+            resp = chat_service_client.edit_message(message_id, user_id, new_content, conversation_id=conversation_id or "", token=token)
+            m = resp.message
+            return ChatMessage(
+                room_id=m.room_id,
+                user_id=m.user_id,
+                message_id=m.message_id,
+                text=m.text,
+                sent_at=m.sent_at_unix_ms,
+                delivered_at=m.delivered_at_unix_ms,
+                type=m.type,
+                media_key=m.media_key,
+                media_name=m.media_name,
+                media_size_bytes=m.media_size_bytes,
+                media_mime_type=m.media_mime_type,
+                media_url=m.media_url,
+                reply_to_message_id=m.reply_to_message_id,
+                is_deleted=m.is_deleted,
+                edited_at=getattr(m, "edited_at_unix_ms", 0) or 0,
+                event_type=m.event_type,
+                status=m.status,
+            )
+        except grpc.RpcError as e:
+            log_msg("error", f"EditMessage error: {str(e)}")
+            raise
+
+    @strawberry.mutation
+    def mark_message_read(
+        self,
+        info: Info,
+        conversation_id: str,
+        user_id: str,
+        message_id: typing.Optional[str] = "",
+    ) -> bool:
+        """Mark message as read via gRPC."""
+        try:
+            token = _authorization_from_info(info)
+            resp = chat_service_client.mark_message_read(conversation_id, user_id, message_id=message_id or "", token=token)
+            return resp.success
+        except grpc.RpcError as e:
+            log_msg("error", f"MarkMessageRead error: {str(e)}")
+            raise
+
+    @strawberry.mutation
+    def add_group_member(
+        self,
+        info: Info,
+        conversation_id: str,
+        user_id: str,
+        operator_id: typing.Optional[str] = "",
+        role: typing.Optional[str] = "MEMBER",
+    ) -> bool:
+        """Add member to group via gRPC."""
+        try:
+            token = _authorization_from_info(info)
+            resp = chat_service_client.add_group_member(conversation_id, user_id, operator_id=operator_id or "", role=role or "MEMBER", token=token)
+            return resp.success
+        except grpc.RpcError as e:
+            log_msg("error", f"AddGroupMember error: {str(e)}")
+            raise
+
+    @strawberry.mutation
+    def remove_group_member(
+        self,
+        info: Info,
+        conversation_id: str,
+        user_id: str,
+        operator_id: typing.Optional[str] = "",
+    ) -> bool:
+        """Remove member from group via gRPC."""
+        try:
+            token = _authorization_from_info(info)
+            resp = chat_service_client.remove_group_member(conversation_id, user_id, operator_id=operator_id or "", token=token)
+            return resp.success
+        except grpc.RpcError as e:
+            log_msg("error", f"RemoveGroupMember error: {str(e)}")
+            raise
+
+    @strawberry.mutation
+    def leave_group(
+        self,
+        info: Info,
+        conversation_id: str,
+        user_id: str,
+    ) -> bool:
+        """Leave group via gRPC."""
+        try:
+            token = _authorization_from_info(info)
+            resp = chat_service_client.leave_group(conversation_id, user_id, token=token)
+            return resp.success
+        except grpc.RpcError as e:
+            log_msg("error", f"LeaveGroup error: {str(e)}")
+            raise
+
+    @strawberry.mutation
+    def promote_admin(
+        self,
+        info: Info,
+        conversation_id: str,
+        user_id: str,
+        operator_id: typing.Optional[str] = "",
+    ) -> bool:
+        """Promote member to admin via gRPC."""
+        try:
+            token = _authorization_from_info(info)
+            resp = chat_service_client.promote_admin(conversation_id, user_id, operator_id=operator_id or "", token=token)
+            return resp.success
+        except grpc.RpcError as e:
+            log_msg("error", f"PromoteAdmin error: {str(e)}")
+            raise
+
+    @strawberry.mutation
+    def transfer_ownership(
+        self,
+        info: Info,
+        conversation_id: str,
+        new_owner_id: str,
+        current_owner_id: typing.Optional[str] = "",
+    ) -> bool:
+        """Transfer group ownership via gRPC."""
+        try:
+            token = _authorization_from_info(info)
+            resp = chat_service_client.transfer_ownership(conversation_id, current_owner_id=current_owner_id or "", new_owner_id=new_owner_id, token=token)
+            return resp.success
+        except grpc.RpcError as e:
+            log_msg("error", f"TransferOwnership error: {str(e)}")
+            raise
+
+    @strawberry.mutation
+    def delete_group(
+        self,
+        info: Info,
+        conversation_id: str,
+        owner_id: str,
+    ) -> bool:
+        """Delete group via gRPC."""
+        try:
+            token = _authorization_from_info(info)
+            resp = chat_service_client.delete_group(conversation_id, owner_id, token=token)
+            return resp.success
+        except grpc.RpcError as e:
+            log_msg("error", f"DeleteGroup error: {str(e)}")
             raise
 
     @strawberry.mutation
@@ -422,8 +780,7 @@ class Mutation:
         file_size_bytes: int,
     ) -> ChatUploadResponse:
         """
-        Get a presigned HTTP PUT URL to upload a file directly to object storage.
-        Pass the returned media_key in the WebSocket message to share the file.
+        Get a presigned HTTP PUT URL to upload a file directly to object storage via gRPC.
         """
         try:
             token = _authorization_from_info(info)
@@ -439,4 +796,5 @@ class Mutation:
         except grpc.RpcError as e:
             log_msg("error", f"RequestUpload error: {str(e)}")
             raise
+
 

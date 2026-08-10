@@ -5,7 +5,7 @@ import warnings
 
 from . import chat_pb2 as chat__pb2
 
-GRPC_GENERATED_VERSION = '1.81.1'
+GRPC_GENERATED_VERSION = '1.81.0'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
@@ -46,10 +46,45 @@ class ChatServiceStub:
                 request_serializer=chat__pb2.CreateRoomRequest.SerializeToString,
                 response_deserializer=chat__pb2.CreateRoomResponse.FromString,
                 _registered_method=True)
+        self.GetConversation = channel.unary_unary(
+                '/chat.v1.ChatService/GetConversation',
+                request_serializer=chat__pb2.GetConversationRequest.SerializeToString,
+                response_deserializer=chat__pb2.GetConversationResponse.FromString,
+                _registered_method=True)
         self.GetMessages = channel.unary_unary(
                 '/chat.v1.ChatService/GetMessages',
                 request_serializer=chat__pb2.GetMessagesRequest.SerializeToString,
                 response_deserializer=chat__pb2.GetMessagesResponse.FromString,
+                _registered_method=True)
+        self.SendMessage = channel.unary_unary(
+                '/chat.v1.ChatService/SendMessage',
+                request_serializer=chat__pb2.SendMessageRequest.SerializeToString,
+                response_deserializer=chat__pb2.SendMessageResponse.FromString,
+                _registered_method=True)
+        self.SearchMessages = channel.unary_unary(
+                '/chat.v1.ChatService/SearchMessages',
+                request_serializer=chat__pb2.SearchMessagesRequest.SerializeToString,
+                response_deserializer=chat__pb2.SearchMessagesResponse.FromString,
+                _registered_method=True)
+        self.DeleteMessage = channel.unary_unary(
+                '/chat.v1.ChatService/DeleteMessage',
+                request_serializer=chat__pb2.DeleteMessageRequest.SerializeToString,
+                response_deserializer=chat__pb2.DeleteMessageResponse.FromString,
+                _registered_method=True)
+        self.EditMessage = channel.unary_unary(
+                '/chat.v1.ChatService/EditMessage',
+                request_serializer=chat__pb2.EditMessageRequest.SerializeToString,
+                response_deserializer=chat__pb2.EditMessageResponse.FromString,
+                _registered_method=True)
+        self.MarkMessageRead = channel.unary_unary(
+                '/chat.v1.ChatService/MarkMessageRead',
+                request_serializer=chat__pb2.MarkMessageReadRequest.SerializeToString,
+                response_deserializer=chat__pb2.MarkMessageReadResponse.FromString,
+                _registered_method=True)
+        self.GetUnreadCount = channel.unary_unary(
+                '/chat.v1.ChatService/GetUnreadCount',
+                request_serializer=chat__pb2.GetUnreadCountRequest.SerializeToString,
+                response_deserializer=chat__pb2.GetUnreadCountResponse.FromString,
                 _registered_method=True)
         self.RequestUpload = channel.unary_unary(
                 '/chat.v1.ChatService/RequestUpload',
@@ -70,6 +105,41 @@ class ChatServiceStub:
                 '/chat.v1.ChatService/GetUserRooms',
                 request_serializer=chat__pb2.GetUserRoomsRequest.SerializeToString,
                 response_deserializer=chat__pb2.GetUserRoomsResponse.FromString,
+                _registered_method=True)
+        self.CreateGroup = channel.unary_unary(
+                '/chat.v1.ChatService/CreateGroup',
+                request_serializer=chat__pb2.CreateGroupRequest.SerializeToString,
+                response_deserializer=chat__pb2.CreateGroupResponse.FromString,
+                _registered_method=True)
+        self.AddGroupMember = channel.unary_unary(
+                '/chat.v1.ChatService/AddGroupMember',
+                request_serializer=chat__pb2.AddGroupMemberRequest.SerializeToString,
+                response_deserializer=chat__pb2.AddGroupMemberResponse.FromString,
+                _registered_method=True)
+        self.RemoveGroupMember = channel.unary_unary(
+                '/chat.v1.ChatService/RemoveGroupMember',
+                request_serializer=chat__pb2.RemoveGroupMemberRequest.SerializeToString,
+                response_deserializer=chat__pb2.RemoveGroupMemberResponse.FromString,
+                _registered_method=True)
+        self.LeaveGroup = channel.unary_unary(
+                '/chat.v1.ChatService/LeaveGroup',
+                request_serializer=chat__pb2.LeaveGroupRequest.SerializeToString,
+                response_deserializer=chat__pb2.LeaveGroupResponse.FromString,
+                _registered_method=True)
+        self.PromoteAdmin = channel.unary_unary(
+                '/chat.v1.ChatService/PromoteAdmin',
+                request_serializer=chat__pb2.PromoteAdminRequest.SerializeToString,
+                response_deserializer=chat__pb2.PromoteAdminResponse.FromString,
+                _registered_method=True)
+        self.TransferOwnership = channel.unary_unary(
+                '/chat.v1.ChatService/TransferOwnership',
+                request_serializer=chat__pb2.TransferOwnershipRequest.SerializeToString,
+                response_deserializer=chat__pb2.TransferOwnershipResponse.FromString,
+                _registered_method=True)
+        self.DeleteGroup = channel.unary_unary(
+                '/chat.v1.ChatService/DeleteGroup',
+                request_serializer=chat__pb2.DeleteGroupRequest.SerializeToString,
+                response_deserializer=chat__pb2.DeleteGroupResponse.FromString,
                 _registered_method=True)
 
 
@@ -92,8 +162,57 @@ class ChatServiceServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetConversation(self, request, context):
+        """Get single conversation details
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def GetMessages(self, request, context):
         """Load paginated message history for a room
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SendMessage(self, request, context):
+        """Send a message via unary RPC
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SearchMessages(self, request, context):
+        """Search messages within a conversation
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DeleteMessage(self, request, context):
+        """Delete message
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def EditMessage(self, request, context):
+        """Edit message
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def MarkMessageRead(self, request, context):
+        """Mark message as read
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetUnreadCount(self, request, context):
+        """Get unread count
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -127,6 +246,49 @@ class ChatServiceServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def CreateGroup(self, request, context):
+        """Group management RPCs
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def AddGroupMember(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def RemoveGroupMember(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def LeaveGroup(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def PromoteAdmin(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def TransferOwnership(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DeleteGroup(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_ChatServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -140,10 +302,45 @@ def add_ChatServiceServicer_to_server(servicer, server):
                     request_deserializer=chat__pb2.CreateRoomRequest.FromString,
                     response_serializer=chat__pb2.CreateRoomResponse.SerializeToString,
             ),
+            'GetConversation': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetConversation,
+                    request_deserializer=chat__pb2.GetConversationRequest.FromString,
+                    response_serializer=chat__pb2.GetConversationResponse.SerializeToString,
+            ),
             'GetMessages': grpc.unary_unary_rpc_method_handler(
                     servicer.GetMessages,
                     request_deserializer=chat__pb2.GetMessagesRequest.FromString,
                     response_serializer=chat__pb2.GetMessagesResponse.SerializeToString,
+            ),
+            'SendMessage': grpc.unary_unary_rpc_method_handler(
+                    servicer.SendMessage,
+                    request_deserializer=chat__pb2.SendMessageRequest.FromString,
+                    response_serializer=chat__pb2.SendMessageResponse.SerializeToString,
+            ),
+            'SearchMessages': grpc.unary_unary_rpc_method_handler(
+                    servicer.SearchMessages,
+                    request_deserializer=chat__pb2.SearchMessagesRequest.FromString,
+                    response_serializer=chat__pb2.SearchMessagesResponse.SerializeToString,
+            ),
+            'DeleteMessage': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteMessage,
+                    request_deserializer=chat__pb2.DeleteMessageRequest.FromString,
+                    response_serializer=chat__pb2.DeleteMessageResponse.SerializeToString,
+            ),
+            'EditMessage': grpc.unary_unary_rpc_method_handler(
+                    servicer.EditMessage,
+                    request_deserializer=chat__pb2.EditMessageRequest.FromString,
+                    response_serializer=chat__pb2.EditMessageResponse.SerializeToString,
+            ),
+            'MarkMessageRead': grpc.unary_unary_rpc_method_handler(
+                    servicer.MarkMessageRead,
+                    request_deserializer=chat__pb2.MarkMessageReadRequest.FromString,
+                    response_serializer=chat__pb2.MarkMessageReadResponse.SerializeToString,
+            ),
+            'GetUnreadCount': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetUnreadCount,
+                    request_deserializer=chat__pb2.GetUnreadCountRequest.FromString,
+                    response_serializer=chat__pb2.GetUnreadCountResponse.SerializeToString,
             ),
             'RequestUpload': grpc.unary_unary_rpc_method_handler(
                     servicer.RequestUpload,
@@ -164,6 +361,41 @@ def add_ChatServiceServicer_to_server(servicer, server):
                     servicer.GetUserRooms,
                     request_deserializer=chat__pb2.GetUserRoomsRequest.FromString,
                     response_serializer=chat__pb2.GetUserRoomsResponse.SerializeToString,
+            ),
+            'CreateGroup': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateGroup,
+                    request_deserializer=chat__pb2.CreateGroupRequest.FromString,
+                    response_serializer=chat__pb2.CreateGroupResponse.SerializeToString,
+            ),
+            'AddGroupMember': grpc.unary_unary_rpc_method_handler(
+                    servicer.AddGroupMember,
+                    request_deserializer=chat__pb2.AddGroupMemberRequest.FromString,
+                    response_serializer=chat__pb2.AddGroupMemberResponse.SerializeToString,
+            ),
+            'RemoveGroupMember': grpc.unary_unary_rpc_method_handler(
+                    servicer.RemoveGroupMember,
+                    request_deserializer=chat__pb2.RemoveGroupMemberRequest.FromString,
+                    response_serializer=chat__pb2.RemoveGroupMemberResponse.SerializeToString,
+            ),
+            'LeaveGroup': grpc.unary_unary_rpc_method_handler(
+                    servicer.LeaveGroup,
+                    request_deserializer=chat__pb2.LeaveGroupRequest.FromString,
+                    response_serializer=chat__pb2.LeaveGroupResponse.SerializeToString,
+            ),
+            'PromoteAdmin': grpc.unary_unary_rpc_method_handler(
+                    servicer.PromoteAdmin,
+                    request_deserializer=chat__pb2.PromoteAdminRequest.FromString,
+                    response_serializer=chat__pb2.PromoteAdminResponse.SerializeToString,
+            ),
+            'TransferOwnership': grpc.unary_unary_rpc_method_handler(
+                    servicer.TransferOwnership,
+                    request_deserializer=chat__pb2.TransferOwnershipRequest.FromString,
+                    response_serializer=chat__pb2.TransferOwnershipResponse.SerializeToString,
+            ),
+            'DeleteGroup': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteGroup,
+                    request_deserializer=chat__pb2.DeleteGroupRequest.FromString,
+                    response_serializer=chat__pb2.DeleteGroupResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -233,6 +465,33 @@ class ChatService:
             _registered_method=True)
 
     @staticmethod
+    def GetConversation(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.v1.ChatService/GetConversation',
+            chat__pb2.GetConversationRequest.SerializeToString,
+            chat__pb2.GetConversationResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
     def GetMessages(request,
             target,
             options=(),
@@ -249,6 +508,168 @@ class ChatService:
             '/chat.v1.ChatService/GetMessages',
             chat__pb2.GetMessagesRequest.SerializeToString,
             chat__pb2.GetMessagesResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SendMessage(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.v1.ChatService/SendMessage',
+            chat__pb2.SendMessageRequest.SerializeToString,
+            chat__pb2.SendMessageResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SearchMessages(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.v1.ChatService/SearchMessages',
+            chat__pb2.SearchMessagesRequest.SerializeToString,
+            chat__pb2.SearchMessagesResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DeleteMessage(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.v1.ChatService/DeleteMessage',
+            chat__pb2.DeleteMessageRequest.SerializeToString,
+            chat__pb2.DeleteMessageResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def EditMessage(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.v1.ChatService/EditMessage',
+            chat__pb2.EditMessageRequest.SerializeToString,
+            chat__pb2.EditMessageResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def MarkMessageRead(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.v1.ChatService/MarkMessageRead',
+            chat__pb2.MarkMessageReadRequest.SerializeToString,
+            chat__pb2.MarkMessageReadResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetUnreadCount(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.v1.ChatService/GetUnreadCount',
+            chat__pb2.GetUnreadCountRequest.SerializeToString,
+            chat__pb2.GetUnreadCountResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -357,6 +778,195 @@ class ChatService:
             '/chat.v1.ChatService/GetUserRooms',
             chat__pb2.GetUserRoomsRequest.SerializeToString,
             chat__pb2.GetUserRoomsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def CreateGroup(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.v1.ChatService/CreateGroup',
+            chat__pb2.CreateGroupRequest.SerializeToString,
+            chat__pb2.CreateGroupResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def AddGroupMember(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.v1.ChatService/AddGroupMember',
+            chat__pb2.AddGroupMemberRequest.SerializeToString,
+            chat__pb2.AddGroupMemberResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def RemoveGroupMember(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.v1.ChatService/RemoveGroupMember',
+            chat__pb2.RemoveGroupMemberRequest.SerializeToString,
+            chat__pb2.RemoveGroupMemberResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def LeaveGroup(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.v1.ChatService/LeaveGroup',
+            chat__pb2.LeaveGroupRequest.SerializeToString,
+            chat__pb2.LeaveGroupResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def PromoteAdmin(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.v1.ChatService/PromoteAdmin',
+            chat__pb2.PromoteAdminRequest.SerializeToString,
+            chat__pb2.PromoteAdminResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def TransferOwnership(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.v1.ChatService/TransferOwnership',
+            chat__pb2.TransferOwnershipRequest.SerializeToString,
+            chat__pb2.TransferOwnershipResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DeleteGroup(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.v1.ChatService/DeleteGroup',
+            chat__pb2.DeleteGroupRequest.SerializeToString,
+            chat__pb2.DeleteGroupResponse.FromString,
             options,
             channel_credentials,
             insecure,
