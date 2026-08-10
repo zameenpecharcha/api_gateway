@@ -316,6 +316,9 @@ class Comment:
     profilePhoto: Optional[str] = None
     profilePhotoSignedUrl: Optional[str] = None
     editedAt: Optional[datetime] = None
+    isAnonymous: bool = False
+    replyCount: int = 0
+    reportCount: int = 0
 
     @classmethod
     def from_dict(cls, data: dict):
@@ -338,6 +341,9 @@ class Comment:
             profilePhoto=data.get('profilePhoto'),
             profilePhotoSignedUrl=data.get('profilePhotoSignedUrl'),
             editedAt=data.get('editedAt'),
+            isAnonymous=bool(data.get('isAnonymous', False)),
+            replyCount=int(data.get('replyCount', 0) or 0),
+            reportCount=int(data.get('reportCount', 0) or 0),
         )
 
 
@@ -414,6 +420,10 @@ class Post:
     pinnedAt: Optional[datetime] = None
     shareCount: int = 0
     viewCount: int = 0
+    allowComments: bool = True
+    allowShare: bool = True
+    allowReactions: bool = True
+    reportCount: int = 0
 
     @classmethod
     def from_dict(cls, data: dict):
@@ -469,6 +479,10 @@ class Post:
             pinnedAt=data.get('pinnedAt'),
             shareCount=int(data.get('shareCount', 0)),
             viewCount=int(data.get('viewCount', 0)),
+            allowComments=bool(data.get('allowComments', True)),
+            allowShare=bool(data.get('allowShare', True)),
+            allowReactions=bool(data.get('allowReactions', True)),
+            reportCount=int(data.get('reportCount', 0) or 0),
         )
 
 
@@ -573,6 +587,50 @@ class Report:
     status: str
     priority: str
     createdAt: datetime
+    reviewedBy: Optional[str] = None
+    reviewedAt: Optional[datetime] = None
+    actionTaken: Optional[str] = None
+    actionNote: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        if not data:
+            return None
+        return cls(
+            id=data["id"],
+            reportCode=data.get("reportCode", ""),
+            entityType=data.get("entityType", ""),
+            entityId=data.get("entityId", ""),
+            reportedBy=data.get("reportedBy", ""),
+            reportedUserId=data.get("reportedUserId"),
+            reasonCode=data.get("reasonCode", ""),
+            description=data.get("description", ""),
+            status=data.get("status", ""),
+            priority=data.get("priority", ""),
+            createdAt=data.get("createdAt"),
+            reviewedBy=data.get("reviewedBy"),
+            reviewedAt=data.get("reviewedAt"),
+            actionTaken=data.get("actionTaken") or "",
+            actionNote=data.get("actionNote") or "",
+        )
+
+
+@strawberry.type
+class ReportListPage:
+    reports: List[Report]
+    totalCount: int
+    page: int
+    totalPages: int
+
+
+@strawberry.type
+class ReportStats:
+    pendingCount: int
+    underReviewCount: int
+    resolvedCount: int
+    rejectedCount: int
+    highPriorityCount: int
+    totalCount: int
 
 
 @strawberry.type
@@ -847,24 +905,75 @@ class Query:
     def myReports(self, info: Info, reportedBy: str, page: int = 1, limit: int = 20) -> List[Report]:
         token = get_token(info)
         result = post_service_client.get_my_reports(reported_by=reportedBy, page=page, limit=limit, token=token)
-        reports = []
-        for r in result.get("reports") or []:
-            if not r:
-                continue
-            reports.append(Report(
-                id=r["id"],
-                reportCode=r.get("reportCode", ""),
-                entityType=r.get("entityType", ""),
-                entityId=r.get("entityId", ""),
-                reportedBy=r.get("reportedBy", ""),
-                reportedUserId=r.get("reportedUserId"),
-                reasonCode=r.get("reasonCode", ""),
-                description=r.get("description", ""),
-                status=r.get("status", ""),
-                priority=r.get("priority", ""),
-                createdAt=r.get("createdAt") or datetime.utcnow(),
-            ))
-        return reports
+        return [Report.from_dict(r) for r in (result.get("reports") or []) if r]
+
+    @strawberry.field
+    def report(self, info: Info, reportId: str) -> Optional[Report]:
+        token = get_token(info)
+        result = post_service_client.get_report(report_id=reportId, token=token)
+        if not result.get("success") or not result.get("report"):
+            return None
+        return Report.from_dict(result["report"])
+
+    @strawberry.field
+    def reports(
+        self,
+        info: Info,
+        status: Optional[str] = None,
+        entityType: Optional[str] = None,
+        priority: Optional[str] = None,
+        reportedBy: Optional[str] = None,
+        reportedUserId: Optional[str] = None,
+        entityId: Optional[str] = None,
+        page: int = 1,
+        limit: int = 20,
+    ) -> ReportListPage:
+        token = get_token(info)
+        result = post_service_client.get_reports(
+            status=status or "",
+            entity_type=entityType or "",
+            priority=priority or "",
+            reported_by=reportedBy or "",
+            reported_user_id=reportedUserId or "",
+            entity_id=entityId or "",
+            page=page,
+            limit=limit,
+            token=token,
+        )
+        return ReportListPage(
+            reports=[Report.from_dict(r) for r in (result.get("reports") or []) if r],
+            totalCount=int(result.get("totalCount") or 0),
+            page=int(result.get("page") or page),
+            totalPages=int(result.get("totalPages") or 1),
+        )
+
+    @strawberry.field
+    def reportsByEntity(
+        self, info: Info, entityType: str, entityId: str, page: int = 1, limit: int = 20
+    ) -> ReportListPage:
+        token = get_token(info)
+        result = post_service_client.get_reports_by_entity(
+            entity_type=entityType, entity_id=entityId, page=page, limit=limit, token=token
+        )
+        return ReportListPage(
+            reports=[Report.from_dict(r) for r in (result.get("reports") or []) if r],
+            totalCount=int(result.get("totalCount") or 0),
+            page=int(result.get("page") or page),
+            totalPages=int(result.get("totalPages") or 1),
+        )
+
+    @strawberry.field
+    def reportStats(self, info: Info) -> ReportStats:
+        token = get_token(info)
+        result = post_service_client.get_report_stats(token=token)
+        return ReportStats(
+            pendingCount=int(result.get("pendingCount") or 0),
+            underReviewCount=int(result.get("underReviewCount") or 0),
+            resolvedCount=int(result.get("resolvedCount") or 0),
+            rejectedCount=int(result.get("rejectedCount") or 0),
+            highPriorityCount=int(result.get("highPriorityCount") or 0),
+            totalCount=int(result.get("totalCount") or 0),
+        )
 
     @strawberry.field
     def sharedPosts(self, info: Info, userId: str, page: int = 1, limit: int = 10) -> List[PostShare]:
@@ -1303,12 +1412,50 @@ class Mutation:
         return ReportResponse(
             success=bool(result.get("success")),
             message=result.get("message", ""),
-            report=Report(
-                id=report["id"], reportCode=report.get("reportCode", ""),
-                entityType=report.get("entityType", ""), entityId=report.get("entityId", ""),
-                reportedBy=report.get("reportedBy", ""), reportedUserId=report.get("reportedUserId"),
-                reasonCode=report.get("reasonCode", ""), description=report.get("description", ""),
-                status=report.get("status", ""), priority=report.get("priority", ""),
-                createdAt=report.get("createdAt") or datetime.utcnow(),
-            ) if report else None,
+            report=Report.from_dict(report) if report else None,
         )
+
+    @strawberry.mutation
+    def updateReportStatus(
+        self,
+        info: Info,
+        reportId: str,
+        status: str,
+        reviewedBy: Optional[str] = None,
+        actionTaken: Optional[str] = None,
+        actionNote: Optional[str] = None,
+        priority: Optional[str] = None,
+    ) -> ReportResponse:
+        token = get_token(info)
+        result = post_service_client.update_report_status(
+            report_id=reportId,
+            status=status,
+            reviewed_by=reviewedBy or "",
+            action_taken=actionTaken or "",
+            action_note=actionNote or "",
+            priority=priority or "",
+            token=token,
+        )
+        return ReportResponse(
+            success=bool(result.get("success")),
+            message=result.get("message", ""),
+            report=Report.from_dict(result.get("report")) if result.get("report") else None,
+        )
+
+    @strawberry.mutation
+    def assignReport(self, info: Info, reportId: str, reviewedBy: str) -> ReportResponse:
+        token = get_token(info)
+        result = post_service_client.assign_report(
+            report_id=reportId, reviewed_by=reviewedBy, token=token
+        )
+        return ReportResponse(
+            success=bool(result.get("success")),
+            message=result.get("message", ""),
+            report=Report.from_dict(result.get("report")) if result.get("report") else None,
+        )
+
+    @strawberry.mutation
+    def deleteReport(self, info: Info, reportId: str) -> MediaResponse:
+        token = get_token(info)
+        result = post_service_client.delete_report(report_id=reportId, token=token)
+        return MediaResponse.from_dict(result)

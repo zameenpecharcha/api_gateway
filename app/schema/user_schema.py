@@ -638,34 +638,25 @@ class Query:
             return None
 
     @strawberry.field
-    def users(self, info: Info, search: typing.Optional[str] = "", page: int = 1, limit: int = 50) -> typing.List[User]:
+    def users(
+        self,
+        info: Info,
+        search: typing.Optional[str] = "",
+        role: typing.Optional[str] = None,
+        page: int = 1,
+        limit: int = 50,
+    ) -> typing.List[User]:
         try:
             token = get_token(info)
-            response = user_service_client.list_users(search=search or "", page=page, limit=limit, token=token)
-            result = []
-            for u in response.users:
-                cover_photo = getattr(u, 'cover_photo', None) or None
-                result.append(User(
-                    id=u.id,
-                    first_name=u.first_name,
-                    last_name=u.last_name,
-                    email=u.email,
-                    phone=u.phone,
-                    profile_photo=u.profile_photo or None,
-                    cover_photo=cover_photo,
-                    profile_photo_signed_url=generate_presigned_get_url_from_url(u.profile_photo) if u.profile_photo else None,
-                    cover_photo_signed_url=None,
-                    role=u.role or None,
-                    address=u.address or None,
-                    latitude=getattr(u, 'latitude', None) or None,
-                    longitude=getattr(u, 'longitude', None) or None,
-                    bio=getattr(u, 'bio', None) or None,
-                    isactive=u.isActive,
-                    email_verified=u.email_verified,
-                    phone_verified=u.phone_verified,
-                    created_at=u.created_at,
-                ))
-            return result
+            response = user_service_client.search_users(
+                search=search or "",
+                role=role or "",
+                page=page,
+                limit=limit,
+                token=token,
+            )
+            # Use shared mapper — UserResponse proto has profile_photo_url, not profile_photo/address.
+            return [_user_from_proto(u) for u in getattr(response, "users", []) or []]
         except Exception as e:
             log_msg("error", f"Error listing users: {str(e)}")
             return []

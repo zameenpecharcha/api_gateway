@@ -75,6 +75,10 @@ def _post_dict(post) -> Optional[dict]:
         "pinnedAt": _ts(pinned_at),
         "shareCount": getattr(post, "share_count", 0),
         "viewCount": getattr(post, "view_count", 0),
+        "allowComments": bool(getattr(post, "allow_comments", True)),
+        "allowShare": bool(getattr(post, "allow_share", True)),
+        "allowReactions": bool(getattr(post, "allow_reactions", True)),
+        "reportCount": int(getattr(post, "report_count", 0) or 0),
     }
 
 
@@ -98,6 +102,8 @@ def _comment_dict(c) -> Optional[dict]:
         "replies": [_comment_dict(r) for r in getattr(c, "replies", []) if r],
         "likeCount": c.like_count,
         "isAnonymous": bool(getattr(c, "is_anonymous", False)),
+        "replyCount": int(getattr(c, "reply_count", 0) or 0),
+        "reportCount": int(getattr(c, "report_count", 0) or 0),
     }
 
 
@@ -116,6 +122,10 @@ def _report_dict(r) -> Optional[dict]:
         "status": r.status,
         "priority": getattr(r, "priority", "") or "",
         "createdAt": _ts(r.created_at) or datetime.utcnow(),
+        "reviewedBy": _str_id(getattr(r, "reviewed_by", None)) or None,
+        "reviewedAt": _ts(getattr(r, "reviewed_at", None)),
+        "actionTaken": getattr(r, "action_taken", "") or "",
+        "actionNote": getattr(r, "action_note", "") or "",
     }
 
 
@@ -731,6 +741,145 @@ class PostsServiceClient(GRPCBaseClient):
             }
         except grpc.RpcError as e:
             return {"success": False, "message": str(e), "reports": [], "totalCount": 0, "page": page, "totalPages": 0}
+
+    def get_report(self, report_id: str, token=None) -> dict:
+        return self._report_rpc(
+            "GetReport",
+            post_pb2.GetReportRequest(report_id=_str_id(report_id)),
+            token=token,
+        )
+
+    def get_reports(
+        self,
+        status: str = "",
+        entity_type: str = "",
+        priority: str = "",
+        reported_by: str = "",
+        reported_user_id: str = "",
+        entity_id: str = "",
+        page: int = 1,
+        limit: int = 20,
+        token=None,
+    ) -> dict:
+        try:
+            response = self._rpc(
+                "GetReports",
+                post_pb2.GetReportsRequest(
+                    status=status or "",
+                    entity_type=entity_type or "",
+                    priority=priority or "",
+                    reported_by=_str_id(reported_by) if reported_by else "",
+                    reported_user_id=_str_id(reported_user_id) if reported_user_id else "",
+                    entity_id=_str_id(entity_id) if entity_id else "",
+                    page=page,
+                    limit=limit,
+                ),
+                token=token,
+            )
+            return {
+                "success": bool(response.success),
+                "message": response.message,
+                "reports": [_report_dict(r) for r in response.reports],
+                "totalCount": response.total_count,
+                "page": response.page,
+                "totalPages": response.total_pages,
+            }
+        except grpc.RpcError as e:
+            return {"success": False, "message": str(e), "reports": [], "totalCount": 0, "page": page, "totalPages": 0}
+
+    def update_report_status(
+        self,
+        report_id: str,
+        status: str,
+        reviewed_by: str = "",
+        action_taken: str = "",
+        action_note: str = "",
+        priority: str = "",
+        token=None,
+    ) -> dict:
+        return self._report_rpc(
+            "UpdateReportStatus",
+            post_pb2.UpdateReportStatusRequest(
+                report_id=_str_id(report_id),
+                status=status or "",
+                reviewed_by=_str_id(reviewed_by) if reviewed_by else "",
+                action_taken=action_taken or "",
+                action_note=action_note or "",
+                priority=priority or "",
+            ),
+            token=token,
+        )
+
+    def assign_report(self, report_id: str, reviewed_by: str, token=None) -> dict:
+        return self._report_rpc(
+            "AssignReport",
+            post_pb2.AssignReportRequest(
+                report_id=_str_id(report_id),
+                reviewed_by=_str_id(reviewed_by),
+            ),
+            token=token,
+        )
+
+    def get_reports_by_entity(
+        self, entity_type: str, entity_id: str, page: int = 1, limit: int = 20, token=None
+    ) -> dict:
+        try:
+            response = self._rpc(
+                "GetReportsByEntity",
+                post_pb2.GetReportsByEntityRequest(
+                    entity_type=entity_type or "",
+                    entity_id=_str_id(entity_id),
+                    page=page,
+                    limit=limit,
+                ),
+                token=token,
+            )
+            return {
+                "success": bool(response.success),
+                "message": response.message,
+                "reports": [_report_dict(r) for r in response.reports],
+                "totalCount": response.total_count,
+                "page": response.page,
+                "totalPages": response.total_pages,
+            }
+        except grpc.RpcError as e:
+            return {"success": False, "message": str(e), "reports": [], "totalCount": 0, "page": page, "totalPages": 0}
+
+    def get_report_stats(self, token=None) -> dict:
+        try:
+            response = self._rpc("GetReportStats", post_pb2.ReportStatsRequest(), token=token)
+            return {
+                "success": bool(response.success),
+                "message": response.message,
+                "pendingCount": response.pending_count,
+                "underReviewCount": response.under_review_count,
+                "resolvedCount": response.resolved_count,
+                "rejectedCount": response.rejected_count,
+                "highPriorityCount": response.high_priority_count,
+                "totalCount": response.total_count,
+            }
+        except grpc.RpcError as e:
+            return {
+                "success": False,
+                "message": str(e),
+                "pendingCount": 0,
+                "underReviewCount": 0,
+                "resolvedCount": 0,
+                "rejectedCount": 0,
+                "highPriorityCount": 0,
+                "totalCount": 0,
+            }
+
+    def delete_report(self, report_id: str, token=None) -> dict:
+        try:
+            response = self._rpc(
+                "DeleteReport",
+                post_pb2.GetReportRequest(report_id=_str_id(report_id)),
+                token=token,
+            )
+            return {"success": bool(response.success), "message": response.message}
+        except grpc.RpcError as e:
+            return {"success": False, "message": str(e)}
 
     def _report_rpc(self, method: str, request, token=None) -> dict:
         try:

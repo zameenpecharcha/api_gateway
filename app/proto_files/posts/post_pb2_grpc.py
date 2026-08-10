@@ -5,7 +5,7 @@ import warnings
 
 from . import post_pb2 as post__pb2
 
-GRPC_GENERATED_VERSION = '1.83.0'
+GRPC_GENERATED_VERSION = '1.73.1'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
@@ -18,14 +18,14 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + ' but the generated code in post_pb2_grpc.py depends on'
+        + f' but the generated code in post_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
     )
 
 
-class PostsServiceStub:
+class PostsServiceStub(object):
     """---------------------------------------------------------------------------
     Service
     ---------------------------------------------------------------------------
@@ -228,9 +228,44 @@ class PostsServiceStub:
                 request_serializer=post__pb2.GetMyReportsRequest.SerializeToString,
                 response_deserializer=post__pb2.ReportListResponse.FromString,
                 _registered_method=True)
+        self.GetReport = channel.unary_unary(
+                '/posts.PostsService/GetReport',
+                request_serializer=post__pb2.GetReportRequest.SerializeToString,
+                response_deserializer=post__pb2.ReportResponse.FromString,
+                _registered_method=True)
+        self.GetReports = channel.unary_unary(
+                '/posts.PostsService/GetReports',
+                request_serializer=post__pb2.GetReportsRequest.SerializeToString,
+                response_deserializer=post__pb2.ReportListResponse.FromString,
+                _registered_method=True)
+        self.UpdateReportStatus = channel.unary_unary(
+                '/posts.PostsService/UpdateReportStatus',
+                request_serializer=post__pb2.UpdateReportStatusRequest.SerializeToString,
+                response_deserializer=post__pb2.ReportResponse.FromString,
+                _registered_method=True)
+        self.AssignReport = channel.unary_unary(
+                '/posts.PostsService/AssignReport',
+                request_serializer=post__pb2.AssignReportRequest.SerializeToString,
+                response_deserializer=post__pb2.ReportResponse.FromString,
+                _registered_method=True)
+        self.GetReportsByEntity = channel.unary_unary(
+                '/posts.PostsService/GetReportsByEntity',
+                request_serializer=post__pb2.GetReportsByEntityRequest.SerializeToString,
+                response_deserializer=post__pb2.ReportListResponse.FromString,
+                _registered_method=True)
+        self.GetReportStats = channel.unary_unary(
+                '/posts.PostsService/GetReportStats',
+                request_serializer=post__pb2.ReportStatsRequest.SerializeToString,
+                response_deserializer=post__pb2.ReportStatsResponse.FromString,
+                _registered_method=True)
+        self.DeleteReport = channel.unary_unary(
+                '/posts.PostsService/DeleteReport',
+                request_serializer=post__pb2.GetReportRequest.SerializeToString,
+                response_deserializer=post__pb2.GenericResponse.FromString,
+                _registered_method=True)
 
 
-class PostsServiceServicer:
+class PostsServiceServicer(object):
     """---------------------------------------------------------------------------
     Service
     ---------------------------------------------------------------------------
@@ -471,6 +506,48 @@ class PostsServiceServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetReport(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetReports(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UpdateReportStatus(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def AssignReport(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetReportsByEntity(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetReportStats(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DeleteReport(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_PostsServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -664,6 +741,41 @@ def add_PostsServiceServicer_to_server(servicer, server):
                     request_deserializer=post__pb2.GetMyReportsRequest.FromString,
                     response_serializer=post__pb2.ReportListResponse.SerializeToString,
             ),
+            'GetReport': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetReport,
+                    request_deserializer=post__pb2.GetReportRequest.FromString,
+                    response_serializer=post__pb2.ReportResponse.SerializeToString,
+            ),
+            'GetReports': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetReports,
+                    request_deserializer=post__pb2.GetReportsRequest.FromString,
+                    response_serializer=post__pb2.ReportListResponse.SerializeToString,
+            ),
+            'UpdateReportStatus': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdateReportStatus,
+                    request_deserializer=post__pb2.UpdateReportStatusRequest.FromString,
+                    response_serializer=post__pb2.ReportResponse.SerializeToString,
+            ),
+            'AssignReport': grpc.unary_unary_rpc_method_handler(
+                    servicer.AssignReport,
+                    request_deserializer=post__pb2.AssignReportRequest.FromString,
+                    response_serializer=post__pb2.ReportResponse.SerializeToString,
+            ),
+            'GetReportsByEntity': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetReportsByEntity,
+                    request_deserializer=post__pb2.GetReportsByEntityRequest.FromString,
+                    response_serializer=post__pb2.ReportListResponse.SerializeToString,
+            ),
+            'GetReportStats': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetReportStats,
+                    request_deserializer=post__pb2.ReportStatsRequest.FromString,
+                    response_serializer=post__pb2.ReportStatsResponse.SerializeToString,
+            ),
+            'DeleteReport': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteReport,
+                    request_deserializer=post__pb2.GetReportRequest.FromString,
+                    response_serializer=post__pb2.GenericResponse.SerializeToString,
+            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
             'posts.PostsService', rpc_method_handlers)
@@ -672,7 +784,7 @@ def add_PostsServiceServicer_to_server(servicer, server):
 
 
  # This class is part of an EXPERIMENTAL API.
-class PostsService:
+class PostsService(object):
     """---------------------------------------------------------------------------
     Service
     ---------------------------------------------------------------------------
@@ -1695,6 +1807,195 @@ class PostsService:
             '/posts.PostsService/GetMyReports',
             post__pb2.GetMyReportsRequest.SerializeToString,
             post__pb2.ReportListResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetReport(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/posts.PostsService/GetReport',
+            post__pb2.GetReportRequest.SerializeToString,
+            post__pb2.ReportResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetReports(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/posts.PostsService/GetReports',
+            post__pb2.GetReportsRequest.SerializeToString,
+            post__pb2.ReportListResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UpdateReportStatus(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/posts.PostsService/UpdateReportStatus',
+            post__pb2.UpdateReportStatusRequest.SerializeToString,
+            post__pb2.ReportResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def AssignReport(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/posts.PostsService/AssignReport',
+            post__pb2.AssignReportRequest.SerializeToString,
+            post__pb2.ReportResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetReportsByEntity(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/posts.PostsService/GetReportsByEntity',
+            post__pb2.GetReportsByEntityRequest.SerializeToString,
+            post__pb2.ReportListResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetReportStats(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/posts.PostsService/GetReportStats',
+            post__pb2.ReportStatsRequest.SerializeToString,
+            post__pb2.ReportStatsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DeleteReport(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/posts.PostsService/DeleteReport',
+            post__pb2.GetReportRequest.SerializeToString,
+            post__pb2.GenericResponse.FromString,
             options,
             channel_credentials,
             insecure,
