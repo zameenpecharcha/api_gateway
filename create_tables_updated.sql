@@ -498,7 +498,10 @@ CREATE TABLE IF NOT EXISTS "property".properties (
     CONSTRAINT properties_verification_status_valid
         CHECK (verification_status IN ('PENDING', 'UNDER_REVIEW', 'VERIFIED', 'REJECTED')),
     CONSTRAINT properties_status_valid
-        CHECK (status IN ('DRAFT', 'PUBLISHED', 'SOLD', 'RENTED', 'INACTIVE', 'ARCHIVED')),
+        CHECK (status IN (
+            'DRAFT', 'PENDING_VERIFICATION', 'UNDER_REVIEW', 'PUBLISHED',
+            'REJECTED', 'SOLD', 'RENTED', 'INACTIVE', 'ARCHIVED'
+        )),
     CONSTRAINT properties_bedrooms_non_negative CHECK (bedrooms IS NULL OR bedrooms >= 0),
     CONSTRAINT properties_bathrooms_non_negative CHECK (bathrooms IS NULL OR bathrooms >= 0),
     CONSTRAINT properties_balconies_non_negative CHECK (balconies IS NULL OR balconies >= 0),
@@ -517,7 +520,7 @@ COMMENT ON COLUMN "property".properties.area_unit IS 'Area unit: SQFT, SQM, ACRE
 COMMENT ON COLUMN "property".properties.construction_status IS 'Stage: READY_TO_MOVE, UNDER_CONSTRUCTION, NEW_LAUNCH.';
 COMMENT ON COLUMN "property".properties.furnishing_status IS 'Furnishing: UNFURNISHED, SEMI_FURNISHED, FULLY_FURNISHED.';
 COMMENT ON COLUMN "property".properties.verification_status IS 'Moderation: PENDING, UNDER_REVIEW, VERIFIED, REJECTED.';
-COMMENT ON COLUMN "property".properties.status IS 'Lifecycle: DRAFT, PUBLISHED, SOLD, RENTED, INACTIVE, ARCHIVED.';
+COMMENT ON COLUMN "property".properties.status IS 'Lifecycle: DRAFT, PENDING_VERIFICATION, UNDER_REVIEW, PUBLISHED, REJECTED, SOLD, RENTED, INACTIVE, ARCHIVED.';
 COMMENT ON COLUMN "property".properties.deleted_at IS 'Soft-delete timestamp; NULL means active.';
 
 -- -----------------------------------------------------------------------------
@@ -573,10 +576,29 @@ CREATE TABLE IF NOT EXISTS "property".property_ratings (
     CONSTRAINT property_ratings_construction_range
         CHECK (construction_rating IS NULL OR (construction_rating >= 1 AND construction_rating <= 5)),
     CONSTRAINT property_ratings_value_range
-        CHECK (value_for_money_rating IS NULL OR (value_for_money_rating >= 1 AND value_for_money_rating <= 5))
+        CHECK (value_for_money_rating IS NULL OR (value_for_money_rating >= 1 AND value_for_money_rating <= 5)),
+    CONSTRAINT property_ratings_status_valid
+        CHECK (status IS NULL OR status IN ('ACTIVE', 'HIDDEN', 'DELETED'))
 );
 
 COMMENT ON TABLE "property".property_ratings IS 'User reviews and granular ratings for properties; owned by property_service.';
+
+-- -----------------------------------------------------------------------------
+-- property.property_rating_likes
+-- Likes on property reviews (property_ratings rows).
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS "property".property_rating_likes (
+    id              UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    rating_id       UUID            NOT NULL,
+    user_id         UUID            NOT NULL,
+    created_at      TIMESTAMPTZ     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_property_rating_likes_rating
+        FOREIGN KEY (rating_id) REFERENCES "property".property_ratings (id) ON DELETE CASCADE,
+    CONSTRAINT property_rating_likes_pair_unique UNIQUE (rating_id, user_id)
+);
+
+COMMENT ON TABLE "property".property_rating_likes IS 'Likes on property reviews; owned by property_service.';
 
 -- -----------------------------------------------------------------------------
 -- property.property_views
@@ -594,7 +616,9 @@ CREATE TABLE IF NOT EXISTS "property".property_views (
     CONSTRAINT fk_property_views_property
         FOREIGN KEY (property_id) REFERENCES "property".properties (id) ON DELETE CASCADE,
     CONSTRAINT fk_property_views_user
-        FOREIGN KEY (user_id) REFERENCES "user".users (id) ON DELETE SET NULL
+        FOREIGN KEY (user_id) REFERENCES "user".users (id) ON DELETE SET NULL,
+    CONSTRAINT property_views_device_type_valid
+        CHECK (device_type IS NULL OR device_type IN ('WEB', 'ANDROID', 'IOS'))
 );
 
 COMMENT ON TABLE "property".property_views IS 'Property view analytics; owned by property_service.';
@@ -646,7 +670,15 @@ CREATE TABLE IF NOT EXISTS "property".property_documents (
     CONSTRAINT fk_property_documents_uploaded_by
         FOREIGN KEY (uploaded_by) REFERENCES "user".users (id) ON DELETE SET NULL,
     CONSTRAINT fk_property_documents_verified_by
-        FOREIGN KEY (verified_by) REFERENCES "user".users (id) ON DELETE SET NULL
+        FOREIGN KEY (verified_by) REFERENCES "user".users (id) ON DELETE SET NULL,
+    CONSTRAINT property_documents_verification_status_valid
+        CHECK (verification_status IS NULL OR verification_status IN ('PENDING', 'VERIFIED', 'REJECTED')),
+    CONSTRAINT property_documents_status_valid
+        CHECK (status IS NULL OR status IN ('ACTIVE', 'INACTIVE', 'DELETED')),
+    CONSTRAINT property_documents_type_valid
+        CHECK (document_type IS NULL OR document_type IN (
+            'RERA_CERTIFICATE', 'FLOOR_PLAN', 'BROCHURE', 'SALE_DEED', 'OTHER'
+        ))
 );
 
 COMMENT ON TABLE "property".property_documents IS 'Legal/verification documents for properties; owned by property_service.';
@@ -689,6 +721,8 @@ CREATE INDEX IF NOT EXISTS idx_property_features_display_order ON "property".pro
 CREATE INDEX IF NOT EXISTS idx_property_ratings_property_id ON "property".property_ratings (property_id);
 CREATE INDEX IF NOT EXISTS idx_property_ratings_user_id ON "property".property_ratings (user_id);
 CREATE INDEX IF NOT EXISTS idx_property_ratings_status ON "property".property_ratings (status);
+CREATE INDEX IF NOT EXISTS idx_property_rating_likes_rating_id ON "property".property_rating_likes (rating_id);
+CREATE INDEX IF NOT EXISTS idx_property_rating_likes_user_id ON "property".property_rating_likes (user_id);
 
 CREATE INDEX IF NOT EXISTS idx_property_views_property_id ON "property".property_views (property_id);
 CREATE INDEX IF NOT EXISTS idx_property_views_user_id ON "property".property_views (user_id);
@@ -780,9 +814,10 @@ CREATE TABLE IF NOT EXISTS api_gateway.reports (
     reviewed_by         UUID,
     reviewed_at         TIMESTAMPTZ,
     action_taken        VARCHAR(50),
-    action_note         TEXT,
+    action_note        TEXT,
     created_at          TIMESTAMPTZ       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          TIMESTAMPTZ     DEFAULT CURRENT_TIMESTAMP,
+    deleted_at          TIMESTAMPTZ,
 
     CONSTRAINT reports_report_code_unique UNIQUE (report_code),
     CONSTRAINT fk_reports_reported_by
@@ -798,22 +833,29 @@ CREATE TABLE IF NOT EXISTS api_gateway.reports (
         )),
     CONSTRAINT reports_reason_code_valid
         CHECK (reason_code IS NULL OR reason_code IN (
-            'SPAM', 'FAKE_PROPERTY', 'ABUSIVE_LANGUAGE', 'MISLEADING_INFORMATION',
-            'HARASSMENT', 'INAPPROPRIATE_CONTENT', 'SCAM', 'COPYRIGHT', 'OTHER'
+            'SPAM', 'VIOLENCE', 'FAKE_INFORMATION', 'FAKE_PROPERTY', 'MISLEADING_INFORMATION',
+            'INAPPROPRIATE_CONTENT', 'HATE_SPEECH', 'HARASSMENT', 'SCAM', 'COPYRIGHT',
+            'ADULT_CONTENT', 'ABUSIVE_LANGUAGE', 'OTHER'
         )),
     CONSTRAINT reports_status_valid
-        CHECK (status IN ('PENDING', 'UNDER_REVIEW', 'RESOLVED', 'REJECTED', 'ESCALATED')),
+        CHECK (status IN ('PENDING', 'UNDER_REVIEW', 'RESOLVED', 'REJECTED', 'ESCALATED', 'CLOSED')),
     CONSTRAINT reports_priority_valid
-        CHECK (priority IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL'))
+        CHECK (priority IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')),
+    CONSTRAINT reports_action_taken_valid
+        CHECK (action_taken IS NULL OR action_taken IN (
+            'NONE', 'WARNING_SENT', 'CONTENT_REMOVED', 'CONTENT_RESTORED', 'ACCOUNT_SUSPENDED',
+            'ACCOUNT_BANNED', 'PROPERTY_UNPUBLISHED', 'POST_HIDDEN', 'COMMENT_DELETED', 'NO_ACTION'
+        ))
 );
 
 COMMENT ON TABLE api_gateway.reports IS 'Content/user moderation reports; owned by api_gateway.';
 COMMENT ON COLUMN api_gateway.reports.entity_type IS 'Target type: POST, COMMENT, PROPERTY, USER, CHAT_MESSAGE, PROPERTY_REVIEW, USER_REVIEW.';
 COMMENT ON COLUMN api_gateway.reports.entity_id IS 'Polymorphic target id (no cross-schema FK; enforced in application).';
-COMMENT ON COLUMN api_gateway.reports.reason_code IS 'Standard reason: SPAM, FAKE_PROPERTY, ABUSIVE_LANGUAGE, MISLEADING_INFORMATION, etc.';
-COMMENT ON COLUMN api_gateway.reports.status IS 'Moderation: PENDING, UNDER_REVIEW, RESOLVED, REJECTED, ESCALATED.';
+COMMENT ON COLUMN api_gateway.reports.reason_code IS 'Standard reason: SPAM, VIOLENCE, FAKE_INFORMATION, HARASSMENT, etc.';
+COMMENT ON COLUMN api_gateway.reports.status IS 'Moderation: PENDING, UNDER_REVIEW, RESOLVED, REJECTED, ESCALATED, CLOSED.';
 COMMENT ON COLUMN api_gateway.reports.priority IS 'Severity: LOW, MEDIUM, HIGH, CRITICAL.';
-COMMENT ON COLUMN api_gateway.reports.action_taken IS 'Final moderation action applied after review (free-form code).';
+COMMENT ON COLUMN api_gateway.reports.action_taken IS 'Final action: NONE, WARNING_SENT, CONTENT_REMOVED, POST_HIDDEN, etc.';
+COMMENT ON COLUMN api_gateway.reports.deleted_at IS 'Soft-delete timestamp; NULL means active.';
 
 -- -----------------------------------------------------------------------------
 -- api_gateway.media
@@ -852,7 +894,17 @@ CREATE TABLE IF NOT EXISTS api_gateway.media (
             (width IS NULL OR width >= 0)
             AND (height IS NULL OR height >= 0)
             AND (duration_seconds IS NULL OR duration_seconds >= 0)
-        )
+        ),
+    CONSTRAINT media_entity_type_valid
+        CHECK (entity_type IS NULL OR entity_type IN (
+            'POST', 'PROPERTY', 'USER', 'CHAT', 'PROPERTY_DOCUMENT'
+        )),
+    CONSTRAINT media_type_valid
+        CHECK (media_type IS NULL OR media_type IN ('IMAGE', 'VIDEO', 'DOCUMENT')),
+    CONSTRAINT media_storage_provider_valid
+        CHECK (storage_provider IS NULL OR storage_provider IN ('MINIO', 'S3')),
+    CONSTRAINT media_status_valid
+        CHECK (status IS NULL OR status IN ('ACTIVE', 'DELETED'))
 );
 
 COMMENT ON TABLE api_gateway.media IS 'Uploaded file metadata and storage pointers; owned by api_gateway.';
@@ -902,6 +954,123 @@ CREATE INDEX IF NOT EXISTS idx_media_status ON api_gateway.media (status);
 CREATE INDEX IF NOT EXISTS idx_media_display_order ON api_gateway.media (entity_type, entity_id, display_order);
 CREATE INDEX IF NOT EXISTS idx_media_is_cover ON api_gateway.media (entity_type, entity_id, is_cover)
     WHERE is_cover = TRUE;
+
+-- -----------------------------------------------------------------------------
+-- Migrations — property schema constraint alignment (safe to re-run)
+-- -----------------------------------------------------------------------------
+DO $body$
+BEGIN
+    ALTER TABLE "property".properties DROP CONSTRAINT IF EXISTS properties_status_valid;
+    ALTER TABLE "property".properties
+        ADD CONSTRAINT properties_status_valid
+        CHECK (status IN (
+            'DRAFT', 'PENDING_VERIFICATION', 'UNDER_REVIEW', 'PUBLISHED',
+            'REJECTED', 'SOLD', 'RENTED', 'INACTIVE', 'ARCHIVED'
+        ));
+EXCEPTION WHEN others THEN
+    RAISE NOTICE 'properties_status_valid migration skipped: %', SQLERRM;
+END $body$;
+
+DO $body$
+BEGIN
+    ALTER TABLE "property".property_ratings DROP CONSTRAINT IF EXISTS property_ratings_status_valid;
+    ALTER TABLE "property".property_ratings
+        ADD CONSTRAINT property_ratings_status_valid
+        CHECK (status IS NULL OR status IN ('ACTIVE', 'HIDDEN', 'DELETED'));
+EXCEPTION WHEN others THEN
+    RAISE NOTICE 'property_ratings_status_valid migration skipped: %', SQLERRM;
+END $body$;
+
+DO $body$
+BEGIN
+    ALTER TABLE "property".property_views DROP CONSTRAINT IF EXISTS property_views_device_type_valid;
+    ALTER TABLE "property".property_views
+        ADD CONSTRAINT property_views_device_type_valid
+        CHECK (device_type IS NULL OR device_type IN ('WEB', 'ANDROID', 'IOS'));
+EXCEPTION WHEN others THEN
+    RAISE NOTICE 'property_views_device_type_valid migration skipped: %', SQLERRM;
+END $body$;
+
+DO $body$
+BEGIN
+    ALTER TABLE "property".property_documents DROP CONSTRAINT IF EXISTS property_documents_verification_status_valid;
+    ALTER TABLE "property".property_documents
+        ADD CONSTRAINT property_documents_verification_status_valid
+        CHECK (verification_status IS NULL OR verification_status IN ('PENDING', 'VERIFIED', 'REJECTED'));
+
+    ALTER TABLE "property".property_documents DROP CONSTRAINT IF EXISTS property_documents_status_valid;
+    ALTER TABLE "property".property_documents
+        ADD CONSTRAINT property_documents_status_valid
+        CHECK (status IS NULL OR status IN ('ACTIVE', 'INACTIVE', 'DELETED'));
+
+    ALTER TABLE "property".property_documents DROP CONSTRAINT IF EXISTS property_documents_type_valid;
+    ALTER TABLE "property".property_documents
+        ADD CONSTRAINT property_documents_type_valid
+        CHECK (document_type IS NULL OR document_type IN (
+            'RERA_CERTIFICATE', 'FLOOR_PLAN', 'BROCHURE', 'SALE_DEED', 'OTHER'
+        ));
+EXCEPTION WHEN others THEN
+    RAISE NOTICE 'property_documents constraint migration skipped: %', SQLERRM;
+END $body$;
+
+-- -----------------------------------------------------------------------------
+-- Migrations — api_gateway reports & media alignment (safe to re-run)
+-- -----------------------------------------------------------------------------
+ALTER TABLE api_gateway.reports ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
+DO $body$
+BEGIN
+    ALTER TABLE api_gateway.reports DROP CONSTRAINT IF EXISTS reports_reason_code_valid;
+    ALTER TABLE api_gateway.reports
+        ADD CONSTRAINT reports_reason_code_valid
+        CHECK (reason_code IS NULL OR reason_code IN (
+            'SPAM', 'VIOLENCE', 'FAKE_INFORMATION', 'FAKE_PROPERTY', 'MISLEADING_INFORMATION',
+            'INAPPROPRIATE_CONTENT', 'HATE_SPEECH', 'HARASSMENT', 'SCAM', 'COPYRIGHT',
+            'ADULT_CONTENT', 'ABUSIVE_LANGUAGE', 'OTHER'
+        ));
+
+    ALTER TABLE api_gateway.reports DROP CONSTRAINT IF EXISTS reports_status_valid;
+    ALTER TABLE api_gateway.reports
+        ADD CONSTRAINT reports_status_valid
+        CHECK (status IN ('PENDING', 'UNDER_REVIEW', 'RESOLVED', 'REJECTED', 'ESCALATED', 'CLOSED'));
+
+    ALTER TABLE api_gateway.reports DROP CONSTRAINT IF EXISTS reports_action_taken_valid;
+    ALTER TABLE api_gateway.reports
+        ADD CONSTRAINT reports_action_taken_valid
+        CHECK (action_taken IS NULL OR action_taken IN (
+            'NONE', 'WARNING_SENT', 'CONTENT_REMOVED', 'CONTENT_RESTORED', 'ACCOUNT_SUSPENDED',
+            'ACCOUNT_BANNED', 'PROPERTY_UNPUBLISHED', 'POST_HIDDEN', 'COMMENT_DELETED', 'NO_ACTION'
+        ));
+EXCEPTION WHEN others THEN
+    RAISE NOTICE 'api_gateway.reports constraint migration skipped: %', SQLERRM;
+END $body$;
+
+DO $body$
+BEGIN
+    ALTER TABLE api_gateway.media DROP CONSTRAINT IF EXISTS media_entity_type_valid;
+    ALTER TABLE api_gateway.media
+        ADD CONSTRAINT media_entity_type_valid
+        CHECK (entity_type IS NULL OR entity_type IN (
+            'POST', 'PROPERTY', 'USER', 'CHAT', 'PROPERTY_DOCUMENT'
+        ));
+
+    ALTER TABLE api_gateway.media DROP CONSTRAINT IF EXISTS media_type_valid;
+    ALTER TABLE api_gateway.media
+        ADD CONSTRAINT media_type_valid
+        CHECK (media_type IS NULL OR media_type IN ('IMAGE', 'VIDEO', 'DOCUMENT'));
+
+    ALTER TABLE api_gateway.media DROP CONSTRAINT IF EXISTS media_storage_provider_valid;
+    ALTER TABLE api_gateway.media
+        ADD CONSTRAINT media_storage_provider_valid
+        CHECK (storage_provider IS NULL OR storage_provider IN ('MINIO', 'S3'));
+
+    ALTER TABLE api_gateway.media DROP CONSTRAINT IF EXISTS media_status_valid;
+    ALTER TABLE api_gateway.media
+        ADD CONSTRAINT media_status_valid
+        CHECK (status IS NULL OR status IN ('ACTIVE', 'DELETED'));
+EXCEPTION WHEN others THEN
+    RAISE NOTICE 'api_gateway.media constraint migration skipped: %', SQLERRM;
+END $body$;
 
 -- =============================================================================
 -- END API_GATEWAY SCHEMA

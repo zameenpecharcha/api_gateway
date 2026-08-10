@@ -47,6 +47,7 @@ message PropertyRating {
     string status = 12;
     int64 created_at = 13;
     int64 updated_at = 14;
+    int32 like_count = 15;
 }
 
 message Property {
@@ -197,6 +198,7 @@ message CreatePropertyRequest {
     double latitude = 29;
     double longitude = 30;
     string status = 31;
+    string verification_status = 32;
 }
 
 message UpdatePropertyRequest {
@@ -243,6 +245,12 @@ message RecordPropertyViewRequest {
     string session_id = 3;
     string device_type = 4;
     string ip_address = 5;
+}
+
+message AdjustPropertyCounterRequest {
+    string property_id = 1;
+    string counter = 2;
+    int32 delta = 3;
 }
 
 message FeatureInput {
@@ -292,6 +300,18 @@ message RatingIdRequest {
     string user_id = 2;
 }
 
+message ReportPropertyReviewRequest {
+    string rating_id = 1;
+    string reported_by = 2;
+    string reported_user_id = 3;
+    string reason_code = 4;
+    string description = 5;
+}
+
+message SubmitPropertyForReviewRequest {
+    string property_id = 1;
+}
+
 message SavePropertyRequest {
     string user_id = 1;
     string property_id = 2;
@@ -315,6 +335,10 @@ message PropertyMediaUpload {
     string file_name = 4;
     string content_type = 5;
     bool is_cover = 6;
+}
+
+message MediaIdRequest {
+    string media_id = 1;
 }
 
 message AddPropertyMediaRequest {
@@ -343,7 +367,9 @@ service PropertyService {
     rpc GetUserProperties(UserIdRequest) returns (PropertyListResponse);
     rpc ListPublicProperties(ListPropertiesRequest) returns (PropertyListResponse);
     rpc UpdatePropertyStatus(UpdatePropertyStatusRequest) returns (PropertyResponse);
+    rpc SubmitPropertyForReview(SubmitPropertyForReviewRequest) returns (PropertyResponse);
     rpc RecordPropertyView(RecordPropertyViewRequest) returns (GenericResponse);
+    rpc AdjustPropertyCounter(AdjustPropertyCounterRequest) returns (GenericResponse);
 
     rpc AddPropertyFeatures(AddFeaturesRequest) returns (FeatureListResponse);
     rpc UpdatePropertyFeatures(UpdateFeaturesRequest) returns (FeatureListResponse);
@@ -354,6 +380,9 @@ service PropertyService {
     rpc DeletePropertyRating(RatingIdRequest) returns (GenericResponse);
     rpc GetPropertyRatings(PropertyIdRequest) returns (RatingListResponse);
     rpc GetUserPropertyRatings(UserIdRequest) returns (RatingListResponse);
+    rpc LikePropertyRating(RatingIdRequest) returns (GenericResponse);
+    rpc UnlikePropertyRating(RatingIdRequest) returns (GenericResponse);
+    rpc ReportPropertyReview(ReportPropertyReviewRequest) returns (GenericResponse);
 
     rpc SaveProperty(SavePropertyRequest) returns (GenericResponse);
     rpc RemoveSavedProperty(SavePropertyRequest) returns (GenericResponse);
@@ -366,4 +395,5 @@ service PropertyService {
 
     rpc AddPropertyMedia(AddPropertyMediaRequest) returns (PropertyMediaListResponse);
     rpc GetPropertyMedia(PropertyIdRequest) returns (PropertyMediaListResponse);
+    rpc DeletePropertyMedia(MediaIdRequest) returns (GenericResponse);
 }

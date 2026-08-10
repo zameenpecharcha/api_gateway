@@ -125,6 +125,22 @@ def _notify_mentioned_users(
             )
 
 
+def _adjust_property_counter(
+    property_id: Optional[str], counter: str, delta: int, token: Optional[str],
+) -> None:
+    if not property_id or not str(property_id).strip():
+        return
+    try:
+        property_service_client.adjust_property_counter(
+            str(property_id).strip(), counter, delta, token=token,
+        )
+    except Exception as e:
+        logger.warning(
+            "property counter adjust failed property=%s counter=%s delta=%s err=%s",
+            property_id, counter, delta, e,
+        )
+
+
 def _resolve_user_details(user_id: str, token: Optional[str]) -> dict:
     empty = {
         "firstName": "",
@@ -932,6 +948,8 @@ class Mutation:
                 message=f"{author_name} mentioned you in a post: {title}",
                 metadata=_json.dumps({"postId": post_id, "postTitle": title}),
             )
+            if propertyId:
+                _adjust_property_counter(propertyId, "post_count", 1, token)
         return PostResponse.from_dict(result, token=token)
 
     @strawberry.mutation
@@ -969,7 +987,11 @@ class Mutation:
     def deletePost(self, info: Info, postId: str) -> PostResponse:
         logger.debug(f"Mutation.deletePost called with postId: {postId}")
         token = get_token(info)
+        post_data = post_service_client.get_post_data(postId, token=token) or {}
+        property_id = post_data.get("propertyId")
         result = post_service_client.delete_post(post_id=postId, token=token)
+        if result.get("success") and property_id:
+            _adjust_property_counter(property_id, "post_count", -1, token)
         return PostResponse.from_dict(result, token=token)
 
     @strawberry.mutation
@@ -1247,6 +1269,8 @@ class Mutation:
             reason_code=reasonCode or "", description=description or "",
             token=token,
         )
+        if result.get("success"):
+            _adjust_property_counter(propertyId, "report_count", 1, token)
         report = result.get("report")
         return ReportResponse(
             success=bool(result.get("success")),

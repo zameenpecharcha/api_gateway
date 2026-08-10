@@ -116,6 +116,7 @@ def _rating_dict(r) -> dict:
         "status": r.status or "",
         "createdAt": _ts(r.created_at),
         "updatedAt": _ts(r.updated_at),
+        "likeCount": int(getattr(r, "like_count", 0) or 0),
     }
 
 
@@ -157,6 +158,7 @@ class PropertyServiceClient(GRPCBaseClient):
             latitude=float(kwargs.get("latitude") or 0),
             longitude=float(kwargs.get("longitude") or 0),
             status=kwargs.get("status", "DRAFT"),
+            verification_status=kwargs.get("verification_status", ""),
         )
         return self._call("CreateProperty", req, token=token)
 
@@ -260,6 +262,22 @@ class PropertyServiceClient(GRPCBaseClient):
             token=token,
         )
 
+    def adjust_property_counter(
+        self, property_id: str, counter: str, delta: int = 1, token=None,
+    ):
+        return self._call(
+            "AdjustPropertyCounter",
+            property_pb2.AdjustPropertyCounterRequest(
+                property_id=_str_id(property_id),
+                counter=counter,
+                delta=int(delta),
+            ),
+            token=token,
+        )
+
+    def record_property_share(self, property_id: str, token=None):
+        return self.adjust_property_counter(property_id, "share_count", 1, token=token)
+
     def add_property_features(self, property_id: str, features: list, token=None):
         return self._call(
             "AddPropertyFeatures",
@@ -281,6 +299,23 @@ class PropertyServiceClient(GRPCBaseClient):
         return self._call(
             "GetPropertyFeatures",
             property_pb2.PropertyIdRequest(property_id=_str_id(property_id)),
+            token=token,
+        )
+
+    def update_property_features(self, property_id: str, features: list, token=None):
+        return self._call(
+            "UpdatePropertyFeatures",
+            property_pb2.UpdateFeaturesRequest(
+                property_id=_str_id(property_id),
+                features=[
+                    property_pb2.FeatureInput(
+                        feature_name=f.get("feature_name", ""),
+                        feature_value=f.get("feature_value", ""),
+                        display_order=int(f.get("display_order") or 0),
+                    )
+                    for f in features
+                ],
+            ),
             token=token,
         )
 
@@ -306,6 +341,81 @@ class PropertyServiceClient(GRPCBaseClient):
         return self._call(
             "GetPropertyRatings",
             property_pb2.PropertyIdRequest(property_id=_str_id(property_id)),
+            token=token,
+        )
+
+    def update_property_rating(self, token=None, **kwargs):
+        return self._call(
+            "UpdatePropertyRating",
+            property_pb2.UpdateRatingRequest(
+                rating_id=_str_id(kwargs["rating_id"]),
+                user_id=_str_id(kwargs["user_id"]),
+                overall_rating=float(kwargs.get("overall_rating") or 0),
+                location_rating=float(kwargs.get("location_rating") or 0),
+                amenities_rating=float(kwargs.get("amenities_rating") or 0),
+                construction_rating=float(kwargs.get("construction_rating") or 0),
+                value_for_money_rating=float(kwargs.get("value_for_money_rating") or 0),
+                title=kwargs.get("title", ""),
+                review=kwargs.get("review", ""),
+                is_anonymous=bool(kwargs.get("is_anonymous", False)),
+            ),
+            token=token,
+        )
+
+    def delete_property_rating(self, rating_id: str, user_id: str, token=None):
+        return self._call(
+            "DeletePropertyRating",
+            property_pb2.RatingIdRequest(rating_id=_str_id(rating_id), user_id=_str_id(user_id)),
+            token=token,
+        )
+
+    def get_user_property_ratings(self, user_id: str, page: int = 1, limit: int = 20, token=None):
+        return self._call(
+            "GetUserPropertyRatings",
+            property_pb2.UserIdRequest(user_id=_str_id(user_id), page=page, limit=limit),
+            token=token,
+        )
+
+    def like_property_rating(self, rating_id: str, user_id: str, token=None):
+        return self._call(
+            "LikePropertyRating",
+            property_pb2.RatingIdRequest(rating_id=_str_id(rating_id), user_id=_str_id(user_id)),
+            token=token,
+        )
+
+    def unlike_property_rating(self, rating_id: str, user_id: str, token=None):
+        return self._call(
+            "UnlikePropertyRating",
+            property_pb2.RatingIdRequest(rating_id=_str_id(rating_id), user_id=_str_id(user_id)),
+            token=token,
+        )
+
+    def report_property_review(self, token=None, **kwargs):
+        return self._call(
+            "ReportPropertyReview",
+            property_pb2.ReportPropertyReviewRequest(
+                rating_id=_str_id(kwargs["rating_id"]),
+                reported_by=_str_id(kwargs["reported_by"]),
+                reported_user_id=_str_id(kwargs.get("reported_user_id", "")),
+                reason_code=kwargs.get("reason_code", ""),
+                description=kwargs.get("description", ""),
+            ),
+            token=token,
+        )
+
+    def submit_property_for_review(self, property_id: str, token=None):
+        return self._call(
+            "SubmitPropertyForReview",
+            property_pb2.SubmitPropertyForReviewRequest(property_id=_str_id(property_id)),
+            token=token,
+        )
+
+    def verify_builder_property(self, property_id: str, verified_by: str, token=None):
+        return self._call(
+            "VerifyBuilderProperty",
+            property_pb2.ApprovePropertyRequest(
+                property_id=_str_id(property_id), verified_by=_str_id(verified_by),
+            ),
             token=token,
         )
 
@@ -379,6 +489,13 @@ class PropertyServiceClient(GRPCBaseClient):
                 uploaded_by=_str_id(uploaded_by),
                 media=uploads,
             ),
+            token=token,
+        )
+
+    def delete_property_media(self, media_id: str, token=None):
+        return self._call(
+            "DeletePropertyMedia",
+            property_pb2.MediaIdRequest(media_id=_str_id(media_id)),
             token=token,
         )
 
