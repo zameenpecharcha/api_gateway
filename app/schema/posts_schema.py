@@ -32,6 +32,19 @@ def _viewer_user_id_from_token(token: Optional[str]) -> str:
         return ""
 
 
+def _selection_names(info: Info) -> set:
+    names = set()
+    try:
+        for field in info.selected_fields or []:
+            for sel in getattr(field, "selections", None) or []:
+                name = getattr(sel, "name", None)
+                if name:
+                    names.add(name)
+    except Exception:
+        pass
+    return names
+
+
 def _extract_mentioned_user_ids(text: Optional[str]) -> List[str]:
     if not text:
         return []
@@ -123,6 +136,79 @@ def _notify_mentioned_users(
                 prop_id,
                 e,
             )
+
+
+def _notify_followers_of_new_post(
+    author_id: str,
+    author_name: str,
+    post_id: Optional[str],
+    post_title: str,
+    token: Optional[str],
+) -> None:
+    """Notify ACTIVE followers when someone they follow publishes a post."""
+    if not author_id:
+        return
+    preview = (post_title or "").strip() or "a new post"
+    if len(preview) > 80:
+        preview = preview[:77] + "..."
+    title = "New post"
+    message = f"{author_name} posted: {preview}"
+    metadata = _json.dumps(
+        {
+            "postId": post_id,
+            "postTitle": post_title,
+            "authorId": author_id,
+        }
+    )
+
+    page = 1
+    limit = 100
+    while page <= 50:  # hard cap to avoid runaway loops
+        try:
+            resp = user_service_client.get_user_followers(
+                author_id, page=page, limit=limit, token=token
+            )
+        except Exception as e:
+            logger.warning(
+                "follower notify: list followers failed author=%s page=%s err=%s",
+                author_id,
+                page,
+                e,
+            )
+            return
+
+        follows = list(getattr(resp, "follows", None) or [])
+        if not follows:
+            break
+
+        for follow in follows:
+            follower_id = str(getattr(follow, "follower_id", "") or "").strip()
+            if not follower_id or follower_id == str(author_id):
+                continue
+            status = (getattr(follow, "status", None) or "ACTIVE").upper()
+            if status and status != "ACTIVE":
+                continue
+            try:
+                user_service_client.create_notification(
+                    user_id=follower_id,
+                    title=title,
+                    message=message,
+                    type="follower_post",
+                    metadata=metadata,
+                    token=token,
+                )
+            except Exception as e:
+                logger.warning(
+                    "follower notify failed author=%s follower=%s err=%s",
+                    author_id,
+                    follower_id,
+                    e,
+                )
+
+        total_pages = int(getattr(resp, "total_pages", 1) or 1)
+        if page >= total_pages:
+            break
+        page += 1
 
 
 def _adjust_property_counter(
@@ -225,16 +311,20 @@ def _builder_user_ids(token: Optional[str], builder_user_id: Optional[str] = Non
         return []
 
 
-def _apply_user_details_to_post(post: dict, users: Dict[str, dict]) -> None:
+def _apply_user_details_to_post(post: dict, users: Dict[str, dict], *, include_profile_photo: bool = True) -> None:
     details = users.get(str(post["userId"]), {})
     post["userFirstName"] = details.get("firstName", "") or post.get("userFirstName", "")
     post["userLastName"] = details.get("lastName", "") or post.get("userLastName", "")
     post["userEmail"] = details.get("email", "") or post.get("userEmail", "")
     post["userPhone"] = details.get("phone", "") or post.get("userPhone", "")
     post["userRole"] = details.get("role", "") or post.get("userRole", "")
-    raw = details.get("profilePhoto")
-    post["userProfilePhoto"] = raw
-    post["userProfilePhotoSignedUrl"] = _safe_presign(raw)
+    if include_profile_photo:
+        raw = details.get("profilePhoto")
+        post["userProfilePhoto"] = raw
+        post["userProfilePhotoSignedUrl"] = _safe_presign(raw)
+    else:
+        post["userProfilePhoto"] = None
+        post["userProfilePhotoSignedUrl"] = None
 
 
 def _apply_user_details_to_comment(comment: dict, users: Dict[str, dict]) -> None:
@@ -264,10 +354,15 @@ def _batch_profile_photos(user_ids: List[str], token: Optional[str]) -> Dict[str
     return {uid: info.get("profilePhoto") for uid, info in details.items()}
 
 
-def _enrich_posts_with_users(posts_data: List[dict], token: Optional[str]) -> List[dict]:
+def _enrich_posts_with_users(
+    posts_data: List[dict],
+    token: Optional[str],
+    *,
+    include_profile_photo: bool = True,
+) -> List[dict]:
     users = _batch_user_details([p["userId"] for p in posts_data], token)
     for post in posts_data:
-        _apply_user_details_to_post(post, users)
+        _apply_user_details_to_post(post, users, include_profile_photo=include_profile_photo)
     return posts_data
 
 
@@ -275,10 +370,17 @@ def _enrich_posts_with_profile_photos(posts_data: List[dict], token: Optional[st
     return _enrich_posts_with_users(posts_data, token)
 
 
-def _posts_from_list_result(result: dict, token: Optional[str]) -> List[dict]:
+def _posts_from_list_result(
+    result: dict,
+    token: Optional[str],
+    *,
+    include_profile_photo: bool = True,
+) -> List[dict]:
     posts_data = [p for p in (result.get("posts") or []) if p]
     if posts_data:
-        _enrich_posts_with_users(posts_data, token)
+        _enrich_posts_with_users(
+            posts_data, token, include_profile_photo=include_profile_photo
+        )
     return posts_data
 
 
@@ -512,6 +614,8 @@ class PostLikeUser:
     userRole: str
     reactionType: str
     likedAt: Optional[datetime] = None
+    profilePhoto: Optional[str] = None
+    profilePhotoSignedUrl: Optional[str] = None
 
 
 @strawberry.type
@@ -790,7 +894,20 @@ class Query:
                 msg,
             ).to_graphql_error()
 
-        posts = [Post.from_dict(p) for p in _posts_from_list_result(result, token)]
+        selected = _selection_names(info)
+        want_media = (not selected) or ("media" in selected)
+        want_photo = (not selected) or (
+            "userProfilePhoto" in selected or "userProfilePhotoSignedUrl" in selected
+        )
+
+        posts_data = _posts_from_list_result(
+            result, token, include_profile_photo=want_photo
+        )
+        if not want_media:
+            for p in posts_data:
+                p["media"] = []
+
+        posts = [Post.from_dict(p) for p in posts_data]
         logger.debug(f"Returning {len(posts)} posts")
         return posts
 
@@ -834,6 +951,9 @@ class Query:
             like["firstName"] = details.get("firstName", "") or like.get("firstName", "")
             like["lastName"] = details.get("lastName", "") or like.get("lastName", "")
             like["userRole"] = details.get("role", "") or like.get("userRole", "")
+            photo = details.get("profilePhoto")
+            like["profilePhoto"] = photo
+            like["profilePhotoSignedUrl"] = _safe_presign(photo) if photo else None
         likes = [
             PostLikeUser(
                 userId=like["userId"],
@@ -842,6 +962,8 @@ class Query:
                 userRole=like.get("userRole", ""),
                 reactionType=like.get("reactionType", "LIKE"),
                 likedAt=like.get("likedAt"),
+                profilePhoto=like.get("profilePhoto"),
+                profilePhotoSignedUrl=like.get("profilePhotoSignedUrl"),
             )
             for like in likes_data
         ]
@@ -1057,6 +1179,15 @@ class Mutation:
                 message=f"{author_name} mentioned you in a post: {title}",
                 metadata=_json.dumps({"postId": post_id, "postTitle": title}),
             )
+            # Don't fan out to followers for anonymous posts (would reveal author).
+            if not isAnonymous:
+                _notify_followers_of_new_post(
+                    author_id=str(userId),
+                    author_name=author_name,
+                    post_id=str(post_id) if post_id else None,
+                    post_title=title,
+                    token=token,
+                )
             if propertyId:
                 _adjust_property_counter(propertyId, "post_count", 1, token)
         return PostResponse.from_dict(result, token=token)

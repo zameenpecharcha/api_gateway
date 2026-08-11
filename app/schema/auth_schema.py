@@ -59,6 +59,19 @@ def _auth_success(auth_response, user_proto, message: str) -> AuthResponse:
     )
 
 
+def _refresh_user_with_auth_token(user_id: str, auth_response, fallback_user):
+    """GetUser requires JWT — use the just-issued access token after social/OTP login."""
+    token = getattr(auth_response, "token", None) or None
+    if not token:
+        return fallback_user
+    try:
+        refreshed = user_service_client.get_user(user_id, token=token)
+        return refreshed or fallback_user
+    except grpc.RpcError as e:
+        log_msg("warning", f"Post-auth GetUser refresh failed user_id={user_id}: {e}")
+        return fallback_user
+
+
 @strawberry.type
 class Query:
     @strawberry.field
@@ -143,7 +156,7 @@ class Mutation:
                 role=user_proto.role,
             )
             user_service_client.update_verification_flags(user_proto.id, email_verified=True)
-            refreshed = user_service_client.get_user(user_proto.id)
+            refreshed = _refresh_user_with_auth_token(user_proto.id, auth_response, user_proto)
             return _auth_success(auth_response, refreshed, "Google sign-in successful")
         except grpc.RpcError as e:
             log_msg("error", f"Google sign-in error: {str(e)}")
@@ -154,7 +167,10 @@ class Mutation:
             if e.code() == grpc.StatusCode.PERMISSION_DENIED:
                 return AuthResponse(success=False, message="Account is inactive")
             if e.code() == grpc.StatusCode.UNAUTHENTICATED:
-                return AuthResponse(success=False, message=e.details() or "Invalid Google account")
+                details = (e.details() or "").strip()
+                if details.lower() in {"missing token", "missing authorization token"}:
+                    return AuthResponse(success=False, message="Google sign-in failed. Please try again.")
+                return AuthResponse(success=False, message=details or "Invalid Google account")
             return AuthResponse(success=False, message="Google sign-in failed")
 
     @strawberry.mutation
@@ -208,7 +224,7 @@ class Mutation:
                 role=user_proto.role,
             )
             user_service_client.update_verification_flags(user_proto.id, email_verified=True)
-            refreshed = user_service_client.get_user(user_proto.id)
+            refreshed = _refresh_user_with_auth_token(user_proto.id, auth_response, user_proto)
             return _auth_success(auth_response, refreshed, "Facebook sign-in successful")
         except grpc.RpcError as e:
             log_msg("error", f"Facebook sign-in error: {str(e)}")
@@ -219,7 +235,10 @@ class Mutation:
             if e.code() == grpc.StatusCode.PERMISSION_DENIED:
                 return AuthResponse(success=False, message="Account is inactive")
             if e.code() == grpc.StatusCode.UNAUTHENTICATED:
-                return AuthResponse(success=False, message=e.details() or "Invalid Facebook account")
+                details = (e.details() or "").strip()
+                if details.lower() in {"missing token", "missing authorization token"}:
+                    return AuthResponse(success=False, message="Facebook sign-in failed. Please try again.")
+                return AuthResponse(success=False, message=details or "Invalid Facebook account")
             return AuthResponse(success=False, message="Facebook sign-in failed")
 
     @strawberry.mutation
@@ -264,7 +283,7 @@ class Mutation:
                 role=user_proto.role,
             )
             user_service_client.update_verification_flags(user_proto.id, phone_verified=True)
-            refreshed = user_service_client.get_user(user_proto.id)
+            refreshed = _refresh_user_with_auth_token(user_proto.id, auth_response, user_proto)
             return _auth_success(auth_response, refreshed, "Mobile sign-in successful")
         except grpc.RpcError as e:
             log_msg("error", f"VerifyMobileOTP error for {phone}: {str(e)}")
