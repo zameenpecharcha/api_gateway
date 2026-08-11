@@ -86,21 +86,25 @@ class User:
     @strawberry.field
     def coverPhotoSignedUrl(self, info: Info) -> typing.Optional[str]:
         try:
-            from app.utils.s3_utils import generate_presigned_get_url_from_url
-            token = get_token(info)
+            existing = getattr(self, "cover_photo_signed_url", None)
+            if existing:
+                return existing
 
-            candidate: typing.Optional[str] = None
+            candidate: typing.Optional[str] = getattr(self, "cover_photo", None)
+            if candidate:
+                url = generate_presigned_get_url_from_url(candidate)
+                return url or candidate
+
             if getattr(self, "cover_photo_id", None):
+                token = get_token(info)
                 media = user_service_client.get_media(media_id=str(self.cover_photo_id), token=token)
                 candidate = getattr(media, "file_url", None) or getattr(media, "media_url", None)
-
-            if not candidate:
-                return None
-
-            url = generate_presigned_get_url_from_url(candidate)
-            return url or candidate
-        except Exception:
+                if candidate:
+                    url = generate_presigned_get_url_from_url(candidate)
+                    return url or candidate
             return None
+        except Exception:
+            return getattr(self, "cover_photo", None)
 
     @strawberry.field
     def coverPhotoUrl(self, info: Info) -> typing.Optional[str]:
@@ -195,7 +199,7 @@ def _resolve_user_profile(user_id: str, token: typing.Optional[str]) -> typing.D
             media = user_service_client.get_media(
                 media_id=str(u.profile_photo_id), token=token
             )
-            photo = getattr(media, "media_url", None) or None
+            photo = getattr(media, "file_url", None) or getattr(media, "media_url", None) or None
         except Exception as e:
             log_msg("warning", f"user media lookup failed user_id={user_id}: {e}")
             photo = None
@@ -620,52 +624,56 @@ class Query:
         try:
             token = get_token(info)
             response = user_service_client.get_media(media_id=mediaId, token=token)
-            if not response or not response.id:
+            if not response or not getattr(response, "id", None):
                 return None
+            file_url = (
+                getattr(response, "file_url", None)
+                or getattr(response, "media_url", None)
+                or ""
+            )
             return Media(
-                id=response.id,
-                context_id=response.context_id,
-                context_type=response.context_type,
-                media_type=response.media_type,
-                media_url=response.media_url,
-                media_order=response.media_order,
-                media_size=response.media_size,
-                caption=response.caption,
-                uploaded_at=response.uploaded_at,
+                id=str(response.id),
+                context_id=str(
+                    getattr(response, "entity_id", None)
+                    or getattr(response, "context_id", None)
+                    or ""
+                ),
+                context_type=str(
+                    getattr(response, "entity_type", None)
+                    or getattr(response, "context_type", None)
+                    or ""
+                ),
+                media_type=str(getattr(response, "media_type", None) or ""),
+                media_url=str(file_url),
+                media_order=int(getattr(response, "media_order", 0) or 0),
+                media_size=int(getattr(response, "file_size", 0) or getattr(response, "media_size", 0) or 0) or None,
+                caption=getattr(response, "caption", None),
+                uploaded_at=str(getattr(response, "created_at", None) or getattr(response, "uploaded_at", None) or ""),
             )
         except Exception as e:
             log_msg("error", f"Error fetching media: {str(e)}")
             return None
 
     @strawberry.field
-    def users(self, info: Info, search: typing.Optional[str] = "", page: int = 1, limit: int = 50) -> typing.List[User]:
+    def users(
+        self,
+        info: Info,
+        search: typing.Optional[str] = "",
+        role: typing.Optional[str] = None,
+        page: int = 1,
+        limit: int = 50,
+    ) -> typing.List[User]:
         try:
             token = get_token(info)
-            response = user_service_client.list_users(search=search or "", page=page, limit=limit, token=token)
-            result = []
-            for u in response.users:
-                cover_photo = getattr(u, 'cover_photo', None) or None
-                result.append(User(
-                    id=u.id,
-                    first_name=u.first_name,
-                    last_name=u.last_name,
-                    email=u.email,
-                    phone=u.phone,
-                    profile_photo=u.profile_photo or None,
-                    cover_photo=cover_photo,
-                    profile_photo_signed_url=generate_presigned_get_url_from_url(u.profile_photo) if u.profile_photo else None,
-                    cover_photo_signed_url=None,
-                    role=u.role or None,
-                    address=u.address or None,
-                    latitude=getattr(u, 'latitude', None) or None,
-                    longitude=getattr(u, 'longitude', None) or None,
-                    bio=getattr(u, 'bio', None) or None,
-                    isactive=u.isActive,
-                    email_verified=u.email_verified,
-                    phone_verified=u.phone_verified,
-                    created_at=u.created_at,
-                ))
-            return result
+            response = user_service_client.search_users(
+                search=search or "",
+                role=role or "",
+                page=page,
+                limit=limit,
+                token=token,
+            )
+            # Use shared mapper — UserResponse proto has profile_photo_url, not profile_photo/address.
+            return [_user_from_proto(u) for u in getattr(response, "users", []) or []]
         except Exception as e:
             log_msg("error", f"Error listing users: {str(e)}")
             return []

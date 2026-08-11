@@ -164,6 +164,8 @@ class RoomParticipant:
     first_name: str
     last_name: str
     avatar_url: str
+    # Optional — UI queries this for “recently active”; may be empty if user proto has no field.
+    last_login_at: typing.Optional[str] = None
 
 
 def _batch_room_participants(
@@ -196,11 +198,15 @@ def _batch_room_participants(
                     avatar = generate_presigned_get_url_from_url(raw_photo) or raw_photo
                 except Exception:
                     avatar = raw_photo
+            last_login = getattr(u, "last_login_at", None) or getattr(u, "last_login", None)
+            if last_login is not None and not isinstance(last_login, str):
+                last_login = str(last_login)
             return uid, RoomParticipant(
                 user_id=str(getattr(u, "id", uid)),
                 first_name=getattr(u, "first_name", "") or "",
                 last_name=getattr(u, "last_name", "") or "",
                 avatar_url=avatar or "",
+                last_login_at=last_login or None,
             )
         except Exception:
             return uid, RoomParticipant(
@@ -208,6 +214,7 @@ def _batch_room_participants(
                 first_name="",
                 last_name="",
                 avatar_url="",
+                last_login_at=None,
             )
 
     if unique_ids:
@@ -222,7 +229,11 @@ def _batch_room_participants(
     for members in member_ids_by_room:
         out.append([
             profiles.get(str(uid)) or RoomParticipant(
-                user_id=str(uid), first_name="", last_name="", avatar_url=""
+                user_id=str(uid),
+                first_name="",
+                last_name="",
+                avatar_url="",
+                last_login_at=None,
             )
             for uid in members
         ])
