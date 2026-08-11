@@ -3,9 +3,9 @@ strawberry-graphql
 uvicorn[standard]
 websockets
 python-dotenv
-grpcio>=1.83.0
+grpcio==1.83.0
 protobuf>=7.35.1
-grpcio-tools>=1.83.0
+grpcio-tools==1.83.0
 PyJWT[crypto]
 cryptography
 httpx
