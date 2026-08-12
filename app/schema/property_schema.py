@@ -1,4 +1,5 @@
 import typing
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 import strawberry
@@ -46,10 +47,21 @@ def _require_admin(token: str) -> str:
 
 
 def _creation_status_for_role(role: str) -> tuple[str, str]:
-    """Return (property_status, verification_status) for new listings."""
-    if role in ("ADMIN", "BUILDER"):
-        return "PUBLISHED", "VERIFIED"
-    return "PENDING_VERIFICATION", "PENDING"
+    """All new listings from Agent/Builder wait for admin approval."""
+    return "UNDER_REVIEW", "UNDER_REVIEW"
+
+
+def _require_property_creator(token: str) -> tuple[str, str]:
+    """Only Agent and Builder may create listings (Admin/General cannot)."""
+    user_id = _require_login(token)
+    role = _viewer_role(token)
+    if role not in ("AGENT", "BUILDER"):
+        raise REException(
+            "FORBIDDEN",
+            "Only agents and builders can create properties",
+            "Role not allowed",
+        ).to_graphql_error()
+    return user_id, role
 
 
 def _to_rating(data: dict) -> "PropertyRating":
@@ -82,6 +94,45 @@ def _enrich_creator(prop_dict: dict, token: str) -> dict:
     return prop_dict
 
 
+def _batch_enrich_creators(prop_dicts: list, token: str) -> list:
+    """Enrich many properties with creator details (parallel GetUser)."""
+    if not prop_dicts:
+        return prop_dicts
+    creator_ids = list({
+        str(p.get("createdBy") or "").strip()
+        for p in prop_dicts
+        if p.get("createdBy")
+    })
+    users_by_id: dict = {}
+    if creator_ids:
+        workers = min(8, len(creator_ids))
+
+        def _fetch(uid: str):
+            try:
+                return uid, user_service_client.get_user(uid, token=token)
+            except Exception as e:
+                log_msg("warning", f"creator enrichment failed for {uid}: {e}")
+                return uid, None
+
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(_fetch, uid) for uid in creator_ids]
+            for fut in as_completed(futures):
+                uid, user = fut.result()
+                if user and getattr(user, "success", False):
+                    users_by_id[uid] = user
+
+    for prop_dict in prop_dicts:
+        uid = str(prop_dict.get("createdBy") or "").strip()
+        user = users_by_id.get(uid)
+        if not user:
+            continue
+        prop_dict["creatorFirstName"] = getattr(user, "first_name", "") or ""
+        prop_dict["creatorLastName"] = getattr(user, "last_name", "") or ""
+        prop_dict["creatorEmail"] = getattr(user, "email", "") or ""
+        prop_dict["creatorRole"] = getattr(user, "role", "") or ""
+    return prop_dicts
+
+
 def _to_property(data: dict) -> "Property":
     return Property(
         id=data["id"],
@@ -95,6 +146,7 @@ def _to_property(data: dict) -> "Property":
         creatorRole=data.get("creatorRole", ""),
         builderName=data.get("builderName", ""),
         projectName=data.get("projectName", ""),
+        reraId=data.get("reraId", ""),
         propertyType=data.get("propertyType", ""),
         listingType=data.get("listingType", ""),
         price=data.get("price", 0.0),
@@ -158,6 +210,7 @@ class Property:
     creatorRole: str = strawberry.field(name="creatorRole")
     builderName: str = strawberry.field(name="builderName")
     projectName: str = strawberry.field(name="projectName")
+    reraId: str = strawberry.field(name="reraId", default="")
     propertyType: str = strawberry.field(name="propertyType")
     listingType: str = strawberry.field(name="listingType")
     price: float
@@ -195,6 +248,7 @@ class CreatePropertyInput:
     description: str = ""
     builderName: str = ""
     projectName: str = ""
+    reraId: str = ""
     propertyType: str = "APARTMENT"
     listingType: str = "SALE"
     price: float = 0.0
@@ -275,17 +329,18 @@ class Query:
             token=token, page=page, limit=limit,
             city=city or "", property_type=propertyType or "", listing_type=listingType or "",
         )
-        props = []
-        for p in resp.properties:
-            data = _enrich_creator(property_dict(p), token)
-            props.append(_to_property(data))
+        raw = [property_dict(p) for p in resp.properties]
+        _batch_enrich_creators(raw, token)
+        props = [_to_property(data) for data in raw]
         return PropertyListPage(properties=props, total=resp.total, page=resp.page, limit=resp.limit)
 
     @strawberry.field
     def userProperties(self, info: Info, userId: str, page: int = 1, limit: int = 20) -> PropertyListPage:
         token = get_token(info)
         resp = property_service_client.get_user_properties(userId, page=page, limit=limit, token=token)
-        props = [_to_property(_enrich_creator(property_dict(p), token)) for p in resp.properties]
+        raw = [property_dict(p) for p in resp.properties]
+        _batch_enrich_creators(raw, token)
+        props = [_to_property(data) for data in raw]
         return PropertyListPage(properties=props, total=resp.total, page=resp.page, limit=resp.limit)
 
     @strawberry.field
@@ -348,13 +403,13 @@ class Mutation:
     @strawberry.mutation
     def createProperty(self, info: Info, input: CreatePropertyInput) -> Property:
         token = get_token(info)
-        user_id = _require_login(token)
-        role = _viewer_role(token)
+        user_id, role = _require_property_creator(token)
         status, verification_status = _creation_status_for_role(role)
         resp = property_service_client.create_property(
             token=token, created_by=user_id,
             title=input.title, description=input.description,
             builder_name=input.builderName, project_name=input.projectName,
+            rera_id=input.reraId or "",
             property_type=input.propertyType, listing_type=input.listingType,
             price=input.price, currency=input.currency,
             city=input.city, state=input.state, country=input.country,

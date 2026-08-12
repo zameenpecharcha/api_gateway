@@ -1032,6 +1032,34 @@ class Mutation:
             ).to_graphql_error()
 
     @strawberry.mutation
+    def updateUserRole(self, info: Info, userId: str, role: str) -> User:
+        """Admin helper — sets a user's platform role (e.g. ADMIN, AGENT, BUILDER, USER)."""
+        try:
+            token = get_token(info)
+            normalized = (role or "").strip().upper().replace("GENERAL_USER", "USER")
+            response = user_service_client.update_user_profile(
+                user_id=str(userId),
+                role=normalized,
+                token=token,
+            )
+            if not getattr(response, "success", True) and not getattr(response, "id", None):
+                raise REException(
+                    "ROLE_UPDATE_FAILED",
+                    getattr(response, "message", None) or "Failed to update role",
+                    getattr(response, "message", None) or "Failed to update role",
+                ).to_graphql_error()
+            return _user_from_proto(response)
+        except REException:
+            raise
+        except Exception as e:
+            log_msg("error", f"Error updating user role: {str(e)}")
+            raise REException(
+                "ROLE_UPDATE_FAILED",
+                "Failed to update role",
+                str(e),
+            ).to_graphql_error()
+
+    @strawberry.mutation
     async def createNotification(
         self,
         info: Info,
