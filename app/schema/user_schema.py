@@ -1,4 +1,5 @@
 import typing
+import re
 import strawberry
 from app.exception.UserException import REException
 from app.utils.log_utils import log_msg
@@ -412,6 +413,66 @@ class OlaSuggestion:
     lng: typing.Optional[float]
     types: typing.List[str]
 
+
+_PIN_RE = re.compile(r"\b(\d{6})\b")
+_POI_TYPES = {
+    "restaurant", "food", "cafe", "bar", "lodging", "store", "shopping_mall",
+    "supermarket", "railway_station", "subway_station", "train_station",
+    "bus_station", "transit_station", "airport", "hospital", "school",
+    "university", "gym", "bank", "atm", "gas_station", "parking",
+    "point_of_interest", "establishment", "premise", "street_address",
+    "route", "intersection",
+}
+_GEO_TYPES = {
+    "locality", "sublocality", "sublocality_level_1", "sublocality_level_2",
+    "sublocality_level_3", "neighborhood", "political",
+    "administrative_area_level_1", "administrative_area_level_2",
+    "administrative_area_level_3", "postal_code", "geocode", "colloquial_area",
+}
+
+
+def _format_locality_label(description: str) -> str:
+    """Compress verbose India addresses to 'Madhapur, Hyderabad, Telangana-500081'."""
+    if not description or not str(description).strip():
+        return ""
+    parts = [p.strip() for p in str(description).split(",") if p.strip()]
+    if parts and parts[-1].lower() in {"india", "भारत"}:
+        parts = parts[:-1]
+
+    pincode = None
+    cleaned = []
+    for part in parts:
+        if part.isdigit() and len(part) == 6:
+            pincode = part
+            continue
+        m = re.match(r"^(.*?)\s*[-\s]\s*(\d{6})$", part)
+        if m and m.group(1).strip():
+            pincode = pincode or m.group(2)
+            cleaned.append(m.group(1).strip())
+            continue
+        only = _PIN_RE.search(part)
+        if only and not part.replace(only.group(1), "").replace("-", "").replace(" ", ""):
+            pincode = only.group(1)
+            continue
+        cleaned.append(part)
+
+    geo = cleaned[-3:] if len(cleaned) > 3 else cleaned
+    if not geo:
+        return pincode or str(description).strip()
+    if pincode:
+        state = geo[-1]
+        head = geo[:-1]
+        return ", ".join([*head, f"{state}-{pincode}"])
+    return ", ".join(geo)
+
+
+def _is_poi_heavy(types: typing.List[str]) -> bool:
+    lower = [str(t or "").lower() for t in (types or [])]
+    has_geo = any(t in _GEO_TYPES for t in lower)
+    has_poi = any(t in _POI_TYPES for t in lower)
+    return has_poi and not has_geo
+
+
 @strawberry.type
 class Notification:
     id: str
@@ -427,6 +488,12 @@ class Notification:
 class NotificationsPage:
     notifications: typing.List[Notification]
     total: int
+
+
+@strawberry.type
+class ClearNotificationsResult:
+    success: bool
+    message: str
 
 def _user_from_proto(u) -> User:
     stats = getattr(u, "statistics", None)
@@ -487,19 +554,33 @@ class Query:
                 resp.raise_for_status()
                 data = resp.json() or {}
                 predictions = data.get("predictions", [])
-                suggestions: typing.List[OlaSuggestion] = []
+                raw: typing.List[OlaSuggestion] = []
                 for p in predictions:
                     loc = ((p or {}).get("geometry") or {}).get("location") or {}
-                    suggestions.append(
+                    types = p.get("types") or []
+                    desc = p.get("description") or ""
+                    raw.append(
                         OlaSuggestion(
                             reference=p.get("reference"),
                             place_id=p.get("place_id"),
-                            description=p.get("description"),
+                            description=_format_locality_label(desc) or desc,
                             lat=loc.get("lat"),
                             lng=loc.get("lng"),
-                            types=p.get("types") or [],
+                            types=types,
                         )
                     )
+
+                geographic = [s for s in raw if not _is_poi_heavy(s.types or [])]
+                pool = geographic if geographic else raw
+
+                suggestions: typing.List[OlaSuggestion] = []
+                seen = set()
+                for s in pool:
+                    key = (s.description or "").strip().lower()
+                    if not key or key in seen:
+                        continue
+                    seen.add(key)
+                    suggestions.append(s)
                 return suggestions
         except httpx.HTTPStatusError as e:
             raise REException("OLA_API_ERROR", "Failed to fetch suggestions", e.response.text).to_graphql_error()
@@ -1028,6 +1109,27 @@ class Mutation:
             raise REException(
                 "MARK_NOTIFICATION_FAILED",
                 "Failed to mark notification read",
+                str(e),
+            ).to_graphql_error()
+
+    @strawberry.mutation
+    async def clearNotifications(
+        self,
+        info: Info,
+        userId: str,
+    ) -> ClearNotificationsResult:
+        try:
+            token = get_token(info)
+            response = user_service_client.clear_notifications(user_id=userId, token=token)
+            return ClearNotificationsResult(
+                success=bool(getattr(response, "success", False)),
+                message=getattr(response, "message", "") or "",
+            )
+        except Exception as e:
+            log_msg("error", f"Error clearing notifications: {str(e)}")
+            raise REException(
+                "CLEAR_NOTIFICATIONS_FAILED",
+                "Failed to clear notifications",
                 str(e),
             ).to_graphql_error()
 

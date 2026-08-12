@@ -378,5 +378,12 @@ class UserServiceClient(GRPCBaseClient):
             token=token,
         )
 
+    def clear_notifications(self, user_id: str, token=None):
+        return self._call(
+            "ClearNotifications",
+            user_pb2.ClearNotificationsRequest(user_id=_str_id(user_id)),
+            token=token,
+        )
+
 
 user_service_client = UserServiceClient()

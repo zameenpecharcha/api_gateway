@@ -54,6 +54,7 @@ service UserService {
     rpc CreateNotification (CreateNotificationRequest) returns (NotificationResponse);
     rpc ListNotifications (ListNotificationsRequest) returns (ListNotificationsResponse);
     rpc MarkNotificationRead (MarkNotificationReadRequest) returns (NotificationResponse);
+    rpc ClearNotifications (ClearNotificationsRequest) returns (GenericResponse);
 }
 
 // --- Shared messages ---
@@ -402,4 +403,8 @@ message ListNotificationsResponse {
 message MarkNotificationReadRequest {
     string notification_id = 1;
     string user_id = 2;
+}
+
+message ClearNotificationsRequest {
+    string user_id = 1;
 }
