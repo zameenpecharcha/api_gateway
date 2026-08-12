@@ -12,3 +12,4 @@ httpx
 truststore
 certifi
 boto3
+opensearch-py
