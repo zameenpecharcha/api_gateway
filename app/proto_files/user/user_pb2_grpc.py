@@ -18,14 +18,14 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + ' but the generated code in user_pb2_grpc.py depends on'
+        + f' but the generated code in user_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
     )
 
 
-class UserServiceStub:
+class UserServiceStub(object):
     """=============================================================================
     User Service — UUID-based, decoupled from auth/post/property services
     =============================================================================
@@ -238,9 +238,14 @@ class UserServiceStub:
                 request_serializer=user__pb2.MarkNotificationReadRequest.SerializeToString,
                 response_deserializer=user__pb2.NotificationResponse.FromString,
                 _registered_method=True)
+        self.ClearNotifications = channel.unary_unary(
+                '/user.UserService/ClearNotifications',
+                request_serializer=user__pb2.ClearNotificationsRequest.SerializeToString,
+                response_deserializer=user__pb2.GenericResponse.FromString,
+                _registered_method=True)
 
 
-class UserServiceServicer:
+class UserServiceServicer(object):
     """=============================================================================
     User Service — UUID-based, decoupled from auth/post/property services
     =============================================================================
@@ -491,6 +496,12 @@ class UserServiceServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def ClearNotifications(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_UserServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -694,6 +705,11 @@ def add_UserServiceServicer_to_server(servicer, server):
                     request_deserializer=user__pb2.MarkNotificationReadRequest.FromString,
                     response_serializer=user__pb2.NotificationResponse.SerializeToString,
             ),
+            'ClearNotifications': grpc.unary_unary_rpc_method_handler(
+                    servicer.ClearNotifications,
+                    request_deserializer=user__pb2.ClearNotificationsRequest.FromString,
+                    response_serializer=user__pb2.GenericResponse.SerializeToString,
+            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
             'user.UserService', rpc_method_handlers)
@@ -702,7 +718,7 @@ def add_UserServiceServicer_to_server(servicer, server):
 
 
  # This class is part of an EXPERIMENTAL API.
-class UserService:
+class UserService(object):
     """=============================================================================
     User Service — UUID-based, decoupled from auth/post/property services
     =============================================================================
@@ -1779,6 +1795,33 @@ class UserService:
             '/user.UserService/MarkNotificationRead',
             user__pb2.MarkNotificationReadRequest.SerializeToString,
             user__pb2.NotificationResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ClearNotifications(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/ClearNotifications',
+            user__pb2.ClearNotificationsRequest.SerializeToString,
+            user__pb2.GenericResponse.FromString,
             options,
             channel_credentials,
             insecure,

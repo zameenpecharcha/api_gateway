@@ -22,6 +22,11 @@ logger = logging.getLogger(__name__)
 _MENTION_RE = re.compile(r"@\[(?:(p):)?([^:\]]+):([^\]]+)\]")
 
 
+def _collapse_mentions(value: Optional[str]) -> str:
+    """Display form: @[id:Name] / @[p:id:Title] → @Name / @Title."""
+    return _MENTION_RE.sub(lambda m: f"@{m.group(3)}", str(value or ""))
+
+
 def _viewer_user_id_from_token(token: Optional[str]) -> str:
     if not token:
         return ""
@@ -695,6 +700,10 @@ class Report:
     reviewedAt: Optional[datetime] = None
     actionTaken: Optional[str] = None
     actionNote: Optional[str] = None
+    entityLabel: Optional[str] = None
+    entityPreview: Optional[str] = None
+    reporterName: Optional[str] = None
+    reporterEmail: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: dict):
@@ -716,7 +725,68 @@ class Report:
             reviewedAt=data.get("reviewedAt"),
             actionTaken=data.get("actionTaken") or "",
             actionNote=data.get("actionNote") or "",
+            entityLabel=data.get("entityLabel"),
+            entityPreview=data.get("entityPreview"),
+            reporterName=data.get("reporterName"),
+            reporterEmail=data.get("reporterEmail"),
         )
+
+
+def _clip_text(value: Optional[str], max_len: int = 90) -> str:
+    text = " ".join(_collapse_mentions(value).split()).strip()
+    if not text:
+        return ""
+    return text if len(text) <= max_len else f"{text[: max_len - 1]}…"
+
+
+def _enrich_report_dict(data: dict, token: Optional[str], user_cache: Dict[str, dict]) -> dict:
+    """Attach human-readable entity/reporter labels for admin reports UI."""
+    out = dict(data or {})
+    reporter_id = str(out.get("reportedBy") or "").strip()
+    if reporter_id:
+        details = user_cache.get(reporter_id)
+        if details is None:
+            details = _resolve_user_details(reporter_id, token)
+            user_cache[reporter_id] = details
+        name = f"{details.get('firstName', '')} {details.get('lastName', '')}".strip()
+        out["reporterName"] = name or details.get("email") or ""
+        out["reporterEmail"] = details.get("email") or ""
+
+    entity_type = str(out.get("entityType") or "").upper()
+    entity_id = str(out.get("entityId") or "").strip()
+    if not entity_id:
+        return out
+
+    try:
+        if entity_type == "POST":
+            post = post_service_client.get_post_data(entity_id, token=token)
+            if post:
+                out["entityLabel"] = (post.get("title") or "").strip() or "Untitled post"
+                out["entityPreview"] = _clip_text(post.get("content"))
+        elif entity_type == "PROPERTY":
+            prop_resp = property_service_client.get_property(entity_id, token=token)
+            prop = getattr(prop_resp, "property", None) or prop_resp
+            title = getattr(prop, "title", None) or getattr(prop, "property_code", None) or "Untitled property"
+            out["entityLabel"] = str(title).strip() or "Untitled property"
+            where = ", ".join(
+                x for x in [getattr(prop, "city", None) or "", getattr(prop, "state", None) or ""] if x
+            )
+            out["entityPreview"] = where or str(getattr(prop, "property_type", "") or "")
+        elif entity_type == "USER":
+            details = user_cache.get(entity_id)
+            if details is None:
+                details = _resolve_user_details(entity_id, token)
+                user_cache[entity_id] = details
+            name = f"{details.get('firstName', '')} {details.get('lastName', '')}".strip()
+            out["entityLabel"] = name or details.get("email") or "User"
+            out["entityPreview"] = details.get("email") or details.get("role") or ""
+        elif entity_type == "COMMENT":
+            out["entityLabel"] = "Comment"
+            out["entityPreview"] = _clip_text(out.get("description"))
+    except Exception as e:
+        logger.warning("report entity enrich failed type=%s id=%s err=%s", entity_type, entity_id, e)
+
+    return out
 
 
 @strawberry.type
@@ -1035,7 +1105,7 @@ class Query:
         result = post_service_client.get_report(report_id=reportId, token=token)
         if not result.get("success") or not result.get("report"):
             return None
-        return Report.from_dict(result["report"])
+        return Report.from_dict(_enrich_report_dict(result["report"], token, {}))
 
     @strawberry.field
     def reports(
@@ -1062,8 +1132,14 @@ class Query:
             limit=limit,
             token=token,
         )
+        user_cache: Dict[str, dict] = {}
+        enriched = [
+            Report.from_dict(_enrich_report_dict(r, token, user_cache))
+            for r in (result.get("reports") or [])
+            if r
+        ]
         return ReportListPage(
-            reports=[Report.from_dict(r) for r in (result.get("reports") or []) if r],
+            reports=[r for r in enriched if r],
             totalCount=int(result.get("totalCount") or 0),
             page=int(result.get("page") or page),
             totalPages=int(result.get("totalPages") or 1),
