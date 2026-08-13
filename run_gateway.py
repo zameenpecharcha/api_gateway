@@ -20,6 +20,7 @@ from app.schema.posts_schema import Query as PostsQuery, Mutation as PostsMutati
 from app.schema.property_schema import Query as PropertyQuery, Mutation as PropertyMutation
 from app.schema.chat_schema import Query as ChatQuery, Mutation as ChatMutation
 from app.schema.global_search_schema import Query as GlobalSearchQuery
+from app.schema.analytics_schema import Query as AnalyticsQuery
 from app.middleware.auth_middleware import AuthMiddleware
 from app.api.chat_api import chat_router
 from strawberry.fastapi import GraphQLRouter
@@ -34,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 # Define GraphQL schema
 @strawberry.type
-class Query(AuthQuery, UserQuery, PostsQuery, PropertyQuery, ChatQuery, GlobalSearchQuery): pass
+class Query(AuthQuery, UserQuery, PostsQuery, PropertyQuery, ChatQuery, GlobalSearchQuery, AnalyticsQuery): pass
 
 @strawberry.type
 class Mutation(AuthMutation, UserMutation, PostsMutation, PropertyMutation, ChatMutation): pass

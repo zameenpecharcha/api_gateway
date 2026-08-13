@@ -13,3 +13,4 @@ truststore
 certifi
 boto3
 opensearch-py
+clickhouse-connect
