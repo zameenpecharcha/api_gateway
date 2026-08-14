@@ -192,6 +192,12 @@ class Query:
         log_msg("info", f"userAnalytics from={request.fromDate} to={request.toDate}")
         try:
             data = fetch_user_analytics(request.fromDate, request.toDate)
+            log_msg(
+                "info",
+                "userAnalytics result "
+                f"totalUsers={data['totalUsers']} dau={data['dailyActiveUsers']} "
+                f"logins={data['loginCount']} trends={len(data['loginTrends'])}",
+            )
             return UserAnalyticsResponse(
                 totalUsers=data["totalUsers"],
                 dailyActiveUsers=data["dailyActiveUsers"],
@@ -224,6 +230,12 @@ class Query:
         log_msg("info", f"propertyAnalytics from={request.fromDate} to={request.toDate}")
         try:
             data = fetch_property_analytics(request.fromDate, request.toDate)
+            log_msg(
+                "info",
+                "propertyAnalytics result "
+                f"views={data['totalViews']} properties={data['uniqueProperties']} "
+                f"days={len(data['viewsByDay'])}",
+            )
             return PropertyAnalyticsResponse(
                 totalViews=data["totalViews"],
                 uniqueViewers=data["uniqueViewers"],
@@ -254,6 +266,12 @@ class Query:
         log_msg("info", f"postAnalytics from={request.fromDate} to={request.toDate}")
         try:
             data = fetch_post_analytics(request.fromDate, request.toDate)
+            log_msg(
+                "info",
+                "postAnalytics result "
+                f"views={data['totalViews']} posts={data['uniquePosts']} "
+                f"days={len(data['viewsByDay'])}",
+            )
             return PostAnalyticsResponse(
                 totalViews=data["totalViews"],
                 uniqueViewers=data["uniqueViewers"],
@@ -286,6 +304,12 @@ class Query:
         log_msg("info", f"commentAnalytics from={request.fromDate} to={request.toDate}")
         try:
             data = fetch_comment_analytics(request.fromDate, request.toDate)
+            log_msg(
+                "info",
+                "commentAnalytics result "
+                f"created={data['commentsCreated']} commenters={data['uniqueCommenters']} "
+                f"days={len(data['commentsByDay'])}",
+            )
             return CommentAnalyticsResponse(
                 commentsCreated=data["commentsCreated"],
                 uniqueCommenters=data["uniqueCommenters"],
