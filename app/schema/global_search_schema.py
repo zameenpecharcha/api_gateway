@@ -71,7 +71,7 @@ class GlobalSearchResponse:
 class Query:
     @strawberry.field
     def globalSearch(self, info: Info, request: GlobalSearchRequest) -> GlobalSearchResponse:
-        log_msg("debug", f"Query.globalSearch keyword={request.keyword!r}")
+        log_msg("info", f"Query.globalSearch keyword={request.keyword!r}")
         try:
             pagination = request.pagination or PaginationInput()
             entity_types = (

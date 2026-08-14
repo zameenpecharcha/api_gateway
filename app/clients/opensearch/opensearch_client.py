@@ -1,26 +1,47 @@
 import os
 import threading
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 from opensearchpy import OpenSearch
+from opensearchpy.exceptions import NotFoundError
 
-load_dotenv()
+from app.utils.log_utils import log_msg
+
+load_dotenv(Path(__file__).resolve().parents[3] / ".env", override=True)
 
 _client_lock = threading.Lock()
 _opensearch_client: Optional[OpenSearch] = None
 
+
+def _env(name: str, default: Optional[str] = None) -> Optional[str]:
+    value = os.getenv(name, default)
+    if value is None:
+        return None
+    return value.strip().strip('"').strip("'")
+
+
 DEFAULT_INDICES = {
-    "USER": "user_index",
-    "POST": "post_index",
-    "PROPERTY": "property_index",
-    "COMMENT": os.getenv("OPENSEARCH_COMMENT_INDEX", "comments_index"),
+    "USER": _env("OPENSEARCH_USER_INDEX", "user_index") or "user_index",
+    "POST": _env("OPENSEARCH_POST_INDEX", "post_index") or "post_index",
+    "PROPERTY": _env("OPENSEARCH_PROPERTY_INDEX", "property_index") or "property_index",
+    "COMMENT": _env("OPENSEARCH_COMMENT_INDEX", "comment_index") or "comment_index",
 }
+
+MULTI_SEARCH_INDICES = [
+    DEFAULT_INDICES["USER"],
+    DEFAULT_INDICES["POST"],
+    DEFAULT_INDICES["PROPERTY"],
+    DEFAULT_INDICES["COMMENT"],
+]
 
 INDEX_TO_ENTITY = {
     "user_index": "USER",
     "post_index": "POST",
     "property_index": "PROPERTY",
+    "comment_index": "COMMENT",
     "comments_index": "COMMENT",
 }
 
@@ -37,13 +58,6 @@ SEARCH_FIELDS = [
 ]
 
 
-def _env(name: str, default: Optional[str] = None) -> Optional[str]:
-    value = os.getenv(name, default)
-    if value is None:
-        return None
-    return value.strip().strip('"').strip("'")
-
-
 def get_opensearch_client() -> OpenSearch:
     global _opensearch_client
     with _client_lock:
@@ -55,23 +69,33 @@ def get_opensearch_client() -> OpenSearch:
         scheme = (_env("OPENSEARCH_SCHEME", "http") or "http").lower()
         username = _env("OPENSEARCH_USERNAME")
         password = _env("OPENSEARCH_PASSWORD")
+        uris = _env("OPENSEARCH_URIS")
+        if uris:
+            parsed = urlparse(uris)
+            if parsed.hostname:
+                host = parsed.hostname
+            if parsed.port:
+                port = parsed.port
+            if parsed.scheme:
+                scheme = parsed.scheme.lower()
 
         http_auth = (username, password) if username and password else None
         use_ssl = scheme == "https"
 
         _opensearch_client = OpenSearch(
-            hosts=[{"host": host, "port": port}],
+            hosts=[{"host": host, "port": port, "scheme": scheme}],
             http_auth=http_auth,
             use_ssl=use_ssl,
             verify_certs=use_ssl,
             ssl_show_warn=False,
+            timeout=20,
         )
         return _opensearch_client
 
 
 def _indices_for_entity_types(entity_types: Optional[List[str]]) -> List[str]:
     if not entity_types:
-        return list(dict.fromkeys(DEFAULT_INDICES.values()))
+        return list(MULTI_SEARCH_INDICES)
 
     indices: List[str] = []
     for entity_type in entity_types:
@@ -79,6 +103,16 @@ def _indices_for_entity_types(entity_types: Optional[List[str]]) -> List[str]:
         if index_name and index_name not in indices:
             indices.append(index_name)
     return indices
+
+
+def _entity_for_index(index_name: str) -> str:
+    bare = (index_name or "").split(":")[-1]
+    if bare in INDEX_TO_ENTITY:
+        return INDEX_TO_ENTITY[bare]
+    for key, entity in INDEX_TO_ENTITY.items():
+        if bare.endswith(key):
+            return entity
+    return "USER"
 
 
 def _location_from_source(source: Dict[str, Any]) -> Optional[str]:
@@ -91,8 +125,7 @@ def _location_from_source(source: Dict[str, Any]) -> Optional[str]:
 
 def _map_hit_to_result(hit: Dict[str, Any]) -> Dict[str, Any]:
     source = hit.get("_source", {}) or {}
-    index_name = hit.get("_index", "")
-    entity_type = INDEX_TO_ENTITY.get(index_name, "USER")
+    entity_type = _entity_for_index(hit.get("_index", ""))
 
     if entity_type == "USER":
         first_name = source.get("firstName") or ""
@@ -159,22 +192,73 @@ def run_global_search(
         return 0, page, size, []
 
     client = get_opensearch_client()
-    body = {
-        "from": page * size,
-        "size": size,
-        "query": {
-            "multi_match": {
-                "query": keyword,
-                "fields": SEARCH_FIELDS,
-                "type": "best_fields",
-                "fuzziness": "AUTO",
-            }
-        },
+    query = {
+        "multi_match": {
+            "query": keyword,
+            "fields": SEARCH_FIELDS,
+            "type": "best_fields",
+            "fuzziness": "AUTO",
+        }
     }
+    try:
+        response = _multi_index_search(client, indices, query, page, size)
+    except NotFoundError as exc:
+        log_msg("warning", f"OpenSearch multi-index search 404 indices={indices}: {exc}")
+        response = _msearch_indices(client, indices, query, page, size)
 
-    response = client.search(index=indices, body=body)
     hits = response.get("hits", {})
     total = hits.get("total", 0)
     total_hits = total.get("value", total) if isinstance(total, dict) else int(total or 0)
     results = [_map_hit_to_result(hit) for hit in hits.get("hits", [])]
     return total_hits, page, size, results
+
+
+def _multi_index_search(
+    client: OpenSearch,
+    indices: List[str],
+    query: Dict[str, Any],
+    page: int,
+    size: int,
+) -> Dict[str, Any]:
+    return client.search(
+        index=indices,
+        body={"from": page * size, "size": size, "query": query},
+        ignore_unavailable=True,
+        allow_no_indices=True,
+    )
+
+
+def _msearch_indices(
+    client: OpenSearch,
+    indices: List[str],
+    query: Dict[str, Any],
+    page: int,
+    size: int,
+) -> Dict[str, Any]:
+    body: List[Dict[str, Any]] = []
+    for index_name in indices:
+        body.append({"index": index_name, "ignore_unavailable": True})
+        body.append({"query": query, "from": 0, "size": size})
+
+    try:
+        response = client.msearch(body=body)
+    except Exception as exc:
+        log_msg("error", f"OpenSearch msearch failed indices={indices}: {exc}")
+        return {"hits": {"total": {"value": 0}, "hits": []}}
+
+    merged: List[Dict[str, Any]] = []
+    for item in response.get("responses", []) or []:
+        if item.get("error"):
+            log_msg("warning", f"OpenSearch msearch shard error: {item.get('error')}")
+            continue
+        merged.extend((item.get("hits") or {}).get("hits") or [])
+
+    merged.sort(key=lambda hit: hit.get("_score") or 0, reverse=True)
+    start = page * size
+    page_hits = merged[start:start + size]
+    return {
+        "hits": {
+            "total": {"value": len(merged)},
+            "hits": page_hits,
+        }
+    }
