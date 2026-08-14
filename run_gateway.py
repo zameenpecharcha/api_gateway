@@ -1,9 +1,10 @@
 import os
 import re
+from pathlib import Path
 from dotenv import load_dotenv
 
 # Must be called before service-module imports that read os.getenv at module level
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parent / ".env", override=True)
 
 import truststore
 

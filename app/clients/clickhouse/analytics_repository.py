@@ -4,6 +4,10 @@ from typing import Any, Dict, List, Tuple
 
 from app.clients.clickhouse.clickhouse_client import get_clickhouse_client
 
+# Reuse worker threads so each keeps a thread-local ClickHouse client.
+# clickhouse-connect forbids concurrent queries on the same client/session.
+_QUERY_POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="ch-analytics")
+
 
 def _utc(value: datetime) -> datetime:
     if value.tzinfo is None:
@@ -119,17 +123,16 @@ def fetch_user_analytics(from_date: datetime, to_date: datetime) -> Dict[str, An
         )
     """
 
-    with ThreadPoolExecutor(max_workers=5) as pool:
-        summary_f = pool.submit(_query_one, summary_sql, params)
-        trends_f = pool.submit(_query_rows, trends_sql, params)
-        method_f = pool.submit(_query_rows, method_sql, params)
-        device_f = pool.submit(_query_rows, device_sql, params)
-        platform_f = pool.submit(_query_one, platform_sql, params)
-        summary = summary_f.result()
-        trends = trends_f.result()
-        methods = method_f.result()
-        devices = device_f.result()
-        platform = platform_f.result()
+    summary_f = _QUERY_POOL.submit(_query_one, summary_sql, params)
+    trends_f = _QUERY_POOL.submit(_query_rows, trends_sql, params)
+    method_f = _QUERY_POOL.submit(_query_rows, method_sql, params)
+    device_f = _QUERY_POOL.submit(_query_rows, device_sql, params)
+    platform_f = _QUERY_POOL.submit(_query_one, platform_sql, params)
+    summary = summary_f.result()
+    trends = trends_f.result()
+    methods = method_f.result()
+    devices = device_f.result()
+    platform = platform_f.result()
 
     return {
         "totalUsers": _as_int(summary[0] if summary else 0),
@@ -202,13 +205,12 @@ def fetch_property_analytics(from_date: datetime, to_date: datetime) -> Dict[str
         LIMIT 10
     """
 
-    with ThreadPoolExecutor(max_workers=3) as pool:
-        summary_f = pool.submit(_query_one, summary_sql, params)
-        daily_f = pool.submit(_query_rows, daily_sql, params)
-        top_f = pool.submit(_query_rows, top_sql, params)
-        summary = summary_f.result()
-        daily = daily_f.result()
-        top = top_f.result()
+    summary_f = _QUERY_POOL.submit(_query_one, summary_sql, params)
+    daily_f = _QUERY_POOL.submit(_query_rows, daily_sql, params)
+    top_f = _QUERY_POOL.submit(_query_rows, top_sql, params)
+    summary = summary_f.result()
+    daily = daily_f.result()
+    top = top_f.result()
 
     return {
         "totalViews": _as_int(summary[0] if summary else 0),
@@ -286,13 +288,12 @@ def fetch_post_analytics(from_date: datetime, to_date: datetime) -> Dict[str, An
         LIMIT 10
     """
 
-    with ThreadPoolExecutor(max_workers=3) as pool:
-        summary_f = pool.submit(_query_one, summary_sql, params)
-        daily_f = pool.submit(_query_rows, daily_sql, params)
-        top_f = pool.submit(_query_rows, top_sql, params)
-        summary = summary_f.result()
-        daily = daily_f.result()
-        top = top_f.result()
+    summary_f = _QUERY_POOL.submit(_query_one, summary_sql, params)
+    daily_f = _QUERY_POOL.submit(_query_rows, daily_sql, params)
+    top_f = _QUERY_POOL.submit(_query_rows, top_sql, params)
+    summary = summary_f.result()
+    daily = daily_f.result()
+    top = top_f.result()
 
     return {
         "totalViews": _as_int(summary[0] if summary else 0),
@@ -351,11 +352,10 @@ def fetch_comment_analytics(from_date: datetime, to_date: datetime) -> Dict[str,
         ORDER BY event_date
     """
 
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        summary_f = pool.submit(_query_one, summary_sql, params)
-        daily_f = pool.submit(_query_rows, daily_sql, params)
-        summary = summary_f.result()
-        daily = daily_f.result()
+    summary_f = _QUERY_POOL.submit(_query_one, summary_sql, params)
+    daily_f = _QUERY_POOL.submit(_query_rows, daily_sql, params)
+    summary = summary_f.result()
+    daily = daily_f.result()
 
     return {
         "commentsCreated": _as_int(summary[0] if summary else 0),
