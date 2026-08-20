@@ -7,6 +7,7 @@ from fastapi import Request
 from starlette.responses import JSONResponse
 from app.clients.auth.auth_client import auth_service_client
 from app.utils.log_utils import log_msg
+from app.utils.request_context import set_user_id
 
 # Public GraphQL operation names (matched case-insensitively)
 # Add any operation here to bypass the auth middleware
@@ -76,6 +77,7 @@ class AuthMiddleware:
                 "email": response.auth_user.email,
                 "role": response.auth_user.role,
             }
+            set_user_id(str(response.auth_user.user_id))
             scope["state"] = request.state._state
 
             await self.app(scope, receive_with_body, send)

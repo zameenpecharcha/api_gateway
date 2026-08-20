@@ -1,5 +1,19 @@
 import logging
+import re
 import sys
+
+from app.utils.request_context import get_correlation_id, get_user_id
+
+_JWT_RE = re.compile(r"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*")
+_BEARER_RE = re.compile(r"(?i)(bearer\s+)[A-Za-z0-9._\-+=/]+")
+
+
+def redact_secrets(message: str) -> str:
+    text = str(message)
+    text = _JWT_RE.sub("[REDACTED_TOKEN]", text)
+    text = _BEARER_RE.sub(r"\1[REDACTED_TOKEN]", text)
+    return text
+
 
 class CustomAdapter(logging.LoggerAdapter):
     def process(self, msg, kwargs):
@@ -40,14 +54,15 @@ def log_msg(level: str, message: str, user_id: str = None, correlation_id: str =
     Args:
         level (str): Log level (debug, info, warning, error, critical)
         message (str): Log message
-        user_id (str, optional): ID of the user. Defaults to 'N/A'.
-        correlation_id (str, optional): Request correlation ID. Defaults to 'N/A'.
+        user_id (str, optional): ID of the user. Defaults to request context or 'N/A'.
+        correlation_id (str, optional): Request correlation ID. Defaults to request context or 'N/A'.
     """
     extra = {
-        "user_id": user_id if user_id else "N/A",
-        "correlation_id": correlation_id if correlation_id else "N/A",
+        "user_id": user_id or get_user_id() or "N/A",
+        "correlation_id": correlation_id or get_correlation_id() or "N/A",
     }
     adapter = CustomAdapter(_get_logger(), extra)
+    message = redact_secrets(message)
 
     level = (level or "info").lower()
     if level == "warn":
