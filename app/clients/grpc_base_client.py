@@ -1,6 +1,5 @@
 import grpc
-from app.utils.log_utils import log_msg
-from app.utils.request_context import get_correlation_id, get_user_id
+from app.utils.log_utils import get_correlation_id, get_user_id, log_msg
 
 
 class GRPCBaseClient:

@@ -1,9 +1,6 @@
-import asyncio
 import logging
 import os
 import re
-from concurrent.futures import ThreadPoolExecutor
-from contextvars import copy_context
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -28,45 +25,17 @@ from app.schema.chat_schema import Query as ChatQuery, Mutation as ChatMutation
 from app.schema.global_search_schema import Query as GlobalSearchQuery
 from app.schema.analytics_schema import Query as AnalyticsQuery
 from app.middleware.auth_middleware import AuthMiddleware
-from app.middleware.request_context_middleware import RequestContextMiddleware
 from app.api.chat_api import chat_router
 from strawberry.fastapi import GraphQLRouter
 from app.api.uploads_api import router as uploads_router
-from app.utils.graphql_log_context import BindLogContextExtension
-from app.utils.request_context import get_correlation_id, get_user_id, set_correlation_id, set_user_id
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class _ContextCopyingExecutor(ThreadPoolExecutor):
-    def submit(self, fn, *args, **kwargs):
-        ctx = copy_context()
-
-        def runner():
-            return ctx.run(fn, *args, **kwargs)
-
-        return super().submit(runner)
-
-
 async def graphql_context(request: Request, response: Response = None):
-    correlation_id = (
-        get_correlation_id()
-        or request.headers.get("x-correlation-id")
-        or request.headers.get("x-request-id")
-    )
-    user_id = get_user_id()
-    if correlation_id:
-        set_correlation_id(correlation_id)
-    if user_id:
-        set_user_id(user_id)
-    return {
-        "request": request,
-        "response": response,
-        "correlation_id": correlation_id,
-        "user_id": user_id,
-    }
+    return {"request": request, "response": response}
 
 
 # Define GraphQL schema
@@ -76,7 +45,7 @@ class Query(AuthQuery, UserQuery, PostsQuery, PropertyQuery, ChatQuery, GlobalSe
 @strawberry.type
 class Mutation(AuthMutation, UserMutation, PostsMutation, PropertyMutation, ChatMutation): pass
 
-schema = strawberry.Schema(query=Query, mutation=Mutation, extensions=[BindLogContextExtension])
+schema = strawberry.Schema(query=Query, mutation=Mutation)
 
 # Initialize app
 app = FastAPI(title="ZPC API Gateway", version="1.0.0")
@@ -119,14 +88,7 @@ def root():
         "health": "/health",
     }
 
-@app.on_event("startup")
-async def _copy_contextvars_into_threads():
-    loop = asyncio.get_running_loop()
-    loop.set_default_executor(_ContextCopyingExecutor(max_workers=32))
-
-
 app = AuthMiddleware(app)
-app = RequestContextMiddleware(app)
 
 # CORSMiddleware must be the OUTERMOST layer so it:
 #   1. handles OPTIONS preflight before AuthMiddleware runs
@@ -137,7 +99,6 @@ app = CORSMiddleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["x-correlation-id"],
 )
 
 # Run app

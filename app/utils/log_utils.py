@@ -1,8 +1,28 @@
 import logging
 import re
 import sys
+import uuid
+from contextvars import ContextVar
+from typing import Optional
 
-from app.utils.request_context import get_correlation_id, get_user_id
+_user_id: ContextVar[Optional[str]] = ContextVar("zpc_user_id", default=None)
+_correlation_id: ContextVar[Optional[str]] = ContextVar("zpc_correlation_id", default=None)
+
+
+def get_user_id() -> Optional[str]:
+    return _user_id.get()
+
+
+def get_correlation_id() -> Optional[str]:
+    return _correlation_id.get()
+
+
+def set_user_id(value: Optional[str] = None) -> None:
+    _user_id.set(value or None)
+
+
+def set_correlation_id(value: Optional[str] = None) -> None:
+    _correlation_id.set(value or str(uuid.uuid4()))
 
 _JWT_RE = re.compile(r"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*")
 _BEARER_RE = re.compile(r"(?i)(bearer\s+)[A-Za-z0-9._\-+=/]+")

@@ -1,5 +1,3 @@
-from typing import Optional
-
 import jwt
 
 # Load public key (safe to load on all services)
@@ -30,32 +28,3 @@ def get_token(info):
     if not auth_header:
         return None
     return auth_header.replace("Bearer ", "").strip()
-
-
-def peek_user_id_from_authorization(auth_header: Optional[str]) -> Optional[str]:
-    """Read user id from a JWT for logging only — does not authenticate the request."""
-    if not auth_header:
-        return None
-    token = auth_header.strip()
-    if token.lower().startswith("bearer "):
-        token = token[7:].strip()
-    if not token or token.count(".") < 2:
-        return None
-    try:
-        payload = jwt.decode(
-            token,
-            options={
-                "verify_signature": False,
-                "verify_aud": False,
-                "verify_exp": False,
-                "verify_iss": False,
-            },
-            algorithms=["HS256", "RS256"],
-        )
-    except Exception:
-        return None
-    for key in ("sub", "user_id", "userId", "id"):
-        value = payload.get(key)
-        if value:
-            return str(value)
-    return None
