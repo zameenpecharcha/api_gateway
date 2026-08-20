@@ -1,0 +1,179 @@
+{
+  "user_index": {
+    "settings": {
+      "index": {
+        "number_of_shards": 1,
+        "number_of_replicas": 1,
+        "analysis": {
+          "analyzer": {
+            "zpc_search": {
+              "type": "custom",
+              "tokenizer": "standard",
+              "filter": ["lowercase", "asciifolding"]
+            }
+          }
+        }
+      }
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "id": { "type": "keyword" },
+        "userCode": { "type": "keyword" },
+        "firstName": {
+          "type": "text",
+          "analyzer": "zpc_search",
+          "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+        },
+        "lastName": {
+          "type": "text",
+          "analyzer": "zpc_search",
+          "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+        },
+        "fullName": {
+          "type": "text",
+          "analyzer": "zpc_search",
+          "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+        },
+        "bio": { "type": "text", "analyzer": "zpc_search" },
+        "role": { "type": "keyword" },
+        "city": {
+          "type": "text",
+          "analyzer": "zpc_search",
+          "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+        },
+        "state": {
+          "type": "text",
+          "analyzer": "zpc_search",
+          "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+        },
+        "country": {
+          "type": "text",
+          "analyzer": "zpc_search",
+          "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+        },
+        "profilePhotoUrl": { "type": "keyword", "index": false },
+        "isActive": { "type": "boolean" }
+      }
+    }
+  },
+  "property_index": {
+    "settings": {
+      "index": {
+        "number_of_shards": 1,
+        "number_of_replicas": 1,
+        "analysis": {
+          "analyzer": {
+            "zpc_search": {
+              "type": "custom",
+              "tokenizer": "standard",
+              "filter": ["lowercase", "asciifolding"]
+            }
+          }
+        }
+      }
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "id": { "type": "keyword" },
+        "propertyCode": { "type": "keyword" },
+        "title": {
+          "type": "text",
+          "analyzer": "zpc_search",
+          "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+        },
+        "description": { "type": "text", "analyzer": "zpc_search" },
+        "builderName": {
+          "type": "text",
+          "analyzer": "zpc_search",
+          "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+        },
+        "propertyType": { "type": "keyword" },
+        "listingType": { "type": "keyword" },
+        "city": {
+          "type": "text",
+          "analyzer": "zpc_search",
+          "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+        },
+        "state": {
+          "type": "text",
+          "analyzer": "zpc_search",
+          "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+        },
+        "country": {
+          "type": "text",
+          "analyzer": "zpc_search",
+          "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+        },
+        "thumbnailUrl": { "type": "keyword", "index": false },
+        "status": { "type": "keyword" }
+      }
+    }
+  },
+  "comment_index": {
+    "settings": {
+      "index": {
+        "number_of_shards": 1,
+        "number_of_replicas": 1,
+        "analysis": {
+          "analyzer": {
+            "zpc_search": {
+              "type": "custom",
+              "tokenizer": "standard",
+              "filter": ["lowercase", "asciifolding"]
+            }
+          }
+        }
+      }
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "id": { "type": "keyword" },
+        "commentId": { "type": "keyword" },
+        "postId": { "type": "keyword" },
+        "propertyId": { "type": "keyword" },
+        "content": { "type": "text", "analyzer": "zpc_search" },
+        "status": { "type": "keyword" }
+      }
+    }
+  },
+  "post_index": {
+    "settings": {
+      "index": {
+        "number_of_shards": 1,
+        "number_of_replicas": 1,
+        "analysis": {
+          "analyzer": {
+            "zpc_search": {
+              "type": "custom",
+              "tokenizer": "standard",
+              "filter": ["lowercase", "asciifolding"]
+            }
+          }
+        }
+      }
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "id": { "type": "keyword" },
+        "postCode": { "type": "keyword" },
+        "title": {
+          "type": "text",
+          "analyzer": "zpc_search",
+          "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+        },
+        "content": { "type": "text", "analyzer": "zpc_search" },
+        "location": {
+          "type": "text",
+          "analyzer": "zpc_search",
+          "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+        },
+        "thumbnailUrl": { "type": "keyword", "index": false },
+        "status": { "type": "keyword" }
+      }
+    }
+  }
+}
