@@ -1,5 +1,5 @@
 import grpc
-from app.utils.log_utils import log_msg
+from app.utils.log_utils import get_correlation_id, get_user_id, log_msg
 
 
 class GRPCBaseClient:
@@ -15,16 +15,29 @@ class GRPCBaseClient:
             self.channel = grpc.insecure_channel(target)
         self.stub = stub_class(self.channel)
 
+    def _context_metadata(self):
+        metadata = []
+        correlation_id = get_correlation_id()
+        if correlation_id:
+            metadata.append(("x-correlation-id", str(correlation_id)))
+        user_id = get_user_id()
+        if user_id:
+            metadata.append(("x-user-id", str(user_id)))
+        return metadata
+
     def _get_metadata(self, token=None, require_token=True):
+        metadata = self._context_metadata()
         if not require_token or not token:
-            return []
+            return metadata
 
         token = token.strip()
-        log_msg("info", f"Preparing gRPC metadata with token: {repr(token[:30]) if token else 'None'}")
         if token.lower().startswith("bearer "):
             token = token[7:].strip()
 
-        return [("authorization", f"Bearer {token}")]
+        log_msg("info", f"Preparing gRPC metadata token={'present' if token else 'absent'}")
+        if token:
+            metadata.append(("authorization", f"Bearer {token}"))
+        return metadata
 
     def _call(self, method_name, request, token=None, require_token=True):
         try:

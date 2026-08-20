@@ -1,6 +1,8 @@
+import logging
 import os
 import re
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Must be called before service-module imports that read os.getenv at module level
@@ -11,7 +13,7 @@ import truststore
 truststore.inject_into_ssl()
 
 import strawberry
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from starlette.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -27,12 +29,14 @@ from app.api.chat_api import chat_router
 from strawberry.fastapi import GraphQLRouter
 from app.api.uploads_api import router as uploads_router
 
-import logging
-import os
-
 # Logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+async def graphql_context(request: Request, response: Response = None):
+    return {"request": request, "response": response}
+
 
 # Define GraphQL schema
 @strawberry.type
@@ -54,7 +58,8 @@ allowed_origins = [o.strip() for o in re.split(r"[\s,]+", _origins_env) if o.str
 graphql_app = GraphQLRouter(
     schema=schema,
     graphql_ide="graphiql",
-    path="/graphql"
+    path="/graphql",
+    context_getter=graphql_context,
 )
 app.include_router(graphql_app, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")

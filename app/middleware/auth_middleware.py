@@ -1,12 +1,13 @@
 import json
 import re
+import uuid
 import grpc
 
 from starlette.types import ASGIApp, Receive, Scope, Send
 from fastapi import Request
 from starlette.responses import JSONResponse
 from app.clients.auth.auth_client import auth_service_client
-from app.utils.log_utils import log_msg
+from app.utils.log_utils import log_msg, set_correlation_id, set_user_id
 
 # Public GraphQL operation names (matched case-insensitively)
 # Add any operation here to bypass the auth middleware
@@ -49,6 +50,7 @@ class AuthMiddleware:
             return {"type": "http.request", "body": body, "more_body": False}
 
         request = Request(scope, receive=receive_with_body)
+        set_correlation_id(request.headers.get("x-correlation-id") or str(uuid.uuid4()))
 
         # Always allow OPTIONS requests for CORS
         if request.method == "OPTIONS":
@@ -76,6 +78,7 @@ class AuthMiddleware:
                 "email": response.auth_user.email,
                 "role": response.auth_user.role,
             }
+            set_user_id(str(response.auth_user.user_id))
             scope["state"] = request.state._state
 
             await self.app(scope, receive_with_body, send)

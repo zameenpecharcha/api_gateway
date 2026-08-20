@@ -131,6 +131,34 @@ class User:
         except Exception:
             return getattr(self, "profile_photo", None)
 
+    @strawberry.field
+    def userFollowers(self, info: Info) -> typing.List["UserFollower"]:
+        try:
+            token = get_token(info)
+            response = user_service_client.get_user_followers(self.id, token=token)
+            follows = [
+                _follow_from_proto(follower)
+                for follower in getattr(response, "follows", [])
+            ]
+            return _enrich_follows_with_profiles(follows, "follower_id", token)
+        except Exception as e:
+            log_msg("error", f"Error fetching nested user followers: {str(e)}")
+            return []
+
+    @strawberry.field
+    def userFollowing(self, info: Info) -> typing.List["UserFollower"]:
+        try:
+            token = get_token(info)
+            response = user_service_client.get_user_following(self.id, token=token)
+            follows = [
+                _follow_from_proto(follow)
+                for follow in getattr(response, "follows", [])
+            ]
+            return _enrich_follows_with_profiles(follows, "following_id", token)
+        except Exception as e:
+            log_msg("error", f"Error fetching nested user following: {str(e)}")
+            return []
+
 @strawberry.type
 class Media:
     id: str

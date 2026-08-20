@@ -152,6 +152,7 @@ def _to_property(data: dict) -> "Property":
         price=data.get("price", 0.0),
         currency=data.get("currency", "INR"),
         city=data.get("city", ""),
+        location=data.get("location", ""),
         state=data.get("state", ""),
         country=data.get("country", ""),
         status=data.get("status", ""),
@@ -216,6 +217,7 @@ class Property:
     price: float
     currency: str
     city: str
+    location: str = ""
     state: str
     country: str
     status: str
@@ -321,13 +323,15 @@ class Query:
     def publicProperties(
         self, info: Info, page: int = 1, limit: int = 20,
         city: typing.Optional[str] = None,
+        search: typing.Optional[str] = None,
         propertyType: typing.Optional[str] = None,
         listingType: typing.Optional[str] = None,
     ) -> PropertyListPage:
         token = get_token(info)
+        keyword = (search or city or "").strip()
         resp = property_service_client.list_public_properties(
             token=token, page=page, limit=limit,
-            city=city or "", property_type=propertyType or "", listing_type=listingType or "",
+            city=keyword, property_type=propertyType or "", listing_type=listingType or "",
         )
         raw = [property_dict(p) for p in resp.properties]
         _batch_enrich_creators(raw, token)
