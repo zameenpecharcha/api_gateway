@@ -31,6 +31,7 @@ def create_clickhouse_client() -> Client:
     password = _env("CLICKHOUSE_PASSWORD", "") or ""
     database = _env("CLICKHOUSE_DATABASE", "default") or "default"
     secure = (_env("CLICKHOUSE_SECURE", "true") or "true").lower() in ("1", "true", "yes")
+    verify = (_env("CLICKHOUSE_VERIFY", "true") or "true").lower() in ("1", "true", "yes")
 
     return clickhouse_connect.get_client(
         host=host,
@@ -39,6 +40,7 @@ def create_clickhouse_client() -> Client:
         password=password,
         database=database,
         secure=secure,
+        verify=verify,
     )
 
 
