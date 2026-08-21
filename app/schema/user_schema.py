@@ -1190,6 +1190,24 @@ class Mutation:
             ).to_graphql_error()
 
     @strawberry.mutation
+    def deleteUser(self, info: Info, userId: str) -> ClearNotificationsResult:
+        """Soft-delete a user profile; emits USER_DELETED for OpenSearch/ClickHouse."""
+        try:
+            token = get_token(info)
+            response = user_service_client.delete_user(user_id=str(userId), token=token)
+            return ClearNotificationsResult(
+                success=bool(getattr(response, "success", False)),
+                message=getattr(response, "message", "") or "",
+            )
+        except Exception as e:
+            log_msg("error", f"Error deleting user: {str(e)}")
+            raise REException(
+                "DELETE_USER_FAILED",
+                "Failed to delete user",
+                str(e),
+            ).to_graphql_error()
+
+    @strawberry.mutation
     async def createNotification(
         self,
         info: Info,

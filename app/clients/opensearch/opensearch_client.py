@@ -132,7 +132,8 @@ def _map_hit_to_result(hit: Dict[str, Any]) -> Dict[str, Any]:
         last_name = source.get("lastName") or ""
         title = (source.get("fullName") or f"{first_name} {last_name}").strip()
         return {
-            "id": source.get("userCode") or source.get("id") or hit.get("_id", ""),
+            # Prefer UUID so UI can open profile / detail routes.
+            "id": source.get("id") or source.get("userCode") or hit.get("_id", ""),
             "entityType": entity_type,
             "title": title or "User",
             "bio": source.get("role"),
@@ -143,7 +144,7 @@ def _map_hit_to_result(hit: Dict[str, Any]) -> Dict[str, Any]:
 
     if entity_type == "POST":
         return {
-            "id": source.get("postCode") or source.get("id") or hit.get("_id", ""),
+            "id": source.get("id") or source.get("postCode") or hit.get("_id", ""),
             "entityType": entity_type,
             "title": source.get("title") or "Post",
             "bio": None,
@@ -154,7 +155,7 @@ def _map_hit_to_result(hit: Dict[str, Any]) -> Dict[str, Any]:
 
     if entity_type == "PROPERTY":
         return {
-            "id": source.get("propertyCode") or source.get("id") or hit.get("_id", ""),
+            "id": source.get("id") or source.get("propertyCode") or hit.get("_id", ""),
             "entityType": entity_type,
             "title": source.get("title") or "Property",
             "bio": None,
@@ -165,7 +166,7 @@ def _map_hit_to_result(hit: Dict[str, Any]) -> Dict[str, Any]:
 
     content = source.get("content") or ""
     return {
-        "id": source.get("commentId") or source.get("id") or hit.get("_id", ""),
+        "id": source.get("id") or source.get("commentId") or hit.get("_id", ""),
         "entityType": "COMMENT",
         "title": content[:120] if content else "Comment",
         "bio": None,
