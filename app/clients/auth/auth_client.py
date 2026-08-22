@@ -86,7 +86,13 @@ class AuthServiceClient(GRPCBaseClient):
 
     def logout(self, token: str, refresh_token: str = None):
         request = auth_pb2.LogoutRequest(token=token, refresh_token=refresh_token or "")
-        return self._call(self.stub.Logout, request, require_token=False)
+        # Forward the access token as Bearer as well so a protected interceptor still works.
+        return self._call(
+            self.stub.Logout,
+            request,
+            token=token or None,
+            require_token=bool(token),
+        )
 
     def validate_token(self, token: str):
         request = auth_pb2.ValidateTokenRequest(token=token)

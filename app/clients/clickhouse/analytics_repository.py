@@ -58,14 +58,14 @@ def fetch_user_analytics(from_date: datetime, to_date: datetime) -> Dict[str, An
             uniqExactIf(user_id, event_type = 'USER_REGISTERED') AS total_users,
             uniqExactIf(user_id, event_date = {dau_date:Date}) AS daily_active_users,
             uniqExactIf(user_id, event_date >= {mau_from:Date}) AS monthly_active_users,
-            countIf(event_type = 'USER_REGISTERED' AND event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS new_registrations,
-            countIf(event_type = 'USER_LOGIN' AND event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS login_count,
+            uniqExactIf(event_id, event_type = 'USER_REGISTERED' AND event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS new_registrations,
+            uniqExactIf(event_id, event_type = 'USER_LOGIN' AND event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS login_count,
             uniqExactIf(user_id, event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS engaged_users,
-            countIf(event_type = 'USER_FOLLOWED' AND event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS follows,
-            countIf(event_type = 'USER_SESSION_STARTED' AND event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS sessions,
-            countIf(event_type = 'USER_LOGOUT' AND event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS logouts,
-            countIf(event_type = 'USER_DELETED' AND event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS deletions,
-            countIf(event_type = 'USER_UNFOLLOWED' AND event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS unfollows
+            uniqExactIf(event_id, event_type = 'USER_FOLLOWED' AND event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS follows,
+            uniqExactIf(event_id, event_type = 'USER_SESSION_STARTED' AND event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS sessions,
+            uniqExactIf(event_id, event_type = 'USER_LOGOUT' AND event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS logouts,
+            uniqExactIf(event_id, event_type = 'USER_DELETED' AND event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS deletions,
+            uniqExactIf(event_id, event_type = 'USER_UNFOLLOWED' AND event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS unfollows
         FROM user_activity_event
         WHERE event_date <= {to_date:Date}
     """
@@ -73,7 +73,7 @@ def fetch_user_analytics(from_date: datetime, to_date: datetime) -> Dict[str, An
     trends_sql = """
         SELECT
             event_date,
-            count() AS login_count,
+            uniqExact(event_id) AS login_count,
             uniqExact(user_id) AS unique_users
         FROM user_activity_event
         WHERE event_type = 'USER_LOGIN'
@@ -86,7 +86,7 @@ def fetch_user_analytics(from_date: datetime, to_date: datetime) -> Dict[str, An
     method_sql = """
         SELECT
             if(login_method = '', 'unknown', login_method) AS name,
-            count() AS login_count,
+            uniqExact(event_id) AS login_count,
             uniqExact(user_id) AS unique_users
         FROM user_activity_event
         WHERE event_type = 'USER_LOGIN'
@@ -99,7 +99,7 @@ def fetch_user_analytics(from_date: datetime, to_date: datetime) -> Dict[str, An
     device_sql = """
         SELECT
             if(device_type = '', 'unknown', device_type) AS name,
-            count() AS login_count,
+            uniqExact(event_id) AS login_count,
             uniqExact(user_id) AS unique_users
         FROM user_activity_event
         WHERE event_type = 'USER_LOGIN'
