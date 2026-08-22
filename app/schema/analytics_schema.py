@@ -104,6 +104,9 @@ class UserAnalyticsResponse:
     platformEngagedUsers: int
     follows: int
     sessions: int
+    logouts: int
+    deletions: int
+    unfollows: int
     loginTrends: list[DailyCount]
     loginsByMethod: list[NamedCount]
     loginsByDevice: list[NamedCount]
@@ -119,6 +122,10 @@ class PropertyAnalyticsResponse:
     ratings: int
     reports: int
     avgViewDurationSeconds: int
+    created: int
+    updated: int
+    deleted: int
+    unsaves: int
     viewsByDay: list[DailyCount]
     topProperties: list[TopEntity]
 
@@ -135,6 +142,9 @@ class PostAnalyticsResponse:
     comments: int
     reports: int
     avgViewDurationSeconds: int
+    created: int
+    updated: int
+    deleted: int
     viewsByDay: list[DailyCount]
     topPosts: list[TopEntity]
 
@@ -146,6 +156,9 @@ class CommentAnalyticsResponse:
     likes: int
     reports: int
     replies: int
+    deleted: int
+    unlikes: int
+    updated: int
     commentsByDay: list[DailyCount]
 
 
@@ -208,6 +221,9 @@ class Query:
                 platformEngagedUsers=data["platformEngagedUsers"],
                 follows=data["follows"],
                 sessions=data["sessions"],
+                logouts=data["logouts"],
+                deletions=data["deletions"],
+                unfollows=data["unfollows"],
                 loginTrends=_daily_counts(data["loginTrends"]),
                 loginsByMethod=_named_counts(data["loginsByMethod"]),
                 loginsByDevice=_named_counts(data["loginsByDevice"]),
@@ -245,6 +261,10 @@ class Query:
                 ratings=data["ratings"],
                 reports=data["reports"],
                 avgViewDurationSeconds=data["avgViewDurationSeconds"],
+                created=data["created"],
+                updated=data["updated"],
+                deleted=data["deleted"],
+                unsaves=data["unsaves"],
                 viewsByDay=_daily_counts(data["viewsByDay"]),
                 topProperties=_top_entities(data["topProperties"]),
             )
@@ -283,6 +303,9 @@ class Query:
                 comments=data["comments"],
                 reports=data["reports"],
                 avgViewDurationSeconds=data["avgViewDurationSeconds"],
+                created=data["created"],
+                updated=data["updated"],
+                deleted=data["deleted"],
                 viewsByDay=_daily_counts(data["viewsByDay"]),
                 topPosts=_top_entities(data["topPosts"]),
             )
@@ -316,6 +339,9 @@ class Query:
                 likes=data["likes"],
                 reports=data["reports"],
                 replies=data["replies"],
+                deleted=data["deleted"],
+                unlikes=data["unlikes"],
+                updated=data["updated"],
                 commentsByDay=_daily_counts(data["commentsByDay"]),
             )
         except GraphQLError:

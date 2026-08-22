@@ -62,7 +62,10 @@ def fetch_user_analytics(from_date: datetime, to_date: datetime) -> Dict[str, An
             countIf(event_type = 'USER_LOGIN' AND event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS login_count,
             uniqExactIf(user_id, event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS engaged_users,
             countIf(event_type = 'USER_FOLLOWED' AND event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS follows,
-            countIf(event_type = 'USER_SESSION_STARTED' AND event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS sessions
+            countIf(event_type = 'USER_SESSION_STARTED' AND event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS sessions,
+            countIf(event_type = 'USER_LOGOUT' AND event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS logouts,
+            countIf(event_type = 'USER_DELETED' AND event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS deletions,
+            countIf(event_type = 'USER_UNFOLLOWED' AND event_time >= {from_ts:DateTime64(3)} AND event_time <= {to_ts:DateTime64(3)}) AS unfollows
         FROM user_activity_event
         WHERE event_date <= {to_date:Date}
     """
@@ -143,6 +146,9 @@ def fetch_user_analytics(from_date: datetime, to_date: datetime) -> Dict[str, An
         "engagedUsers": _as_int(summary[5] if summary else 0),
         "follows": _as_int(summary[6] if summary else 0),
         "sessions": _as_int(summary[7] if summary else 0),
+        "logouts": _as_int(summary[8] if summary else 0),
+        "deletions": _as_int(summary[9] if summary else 0),
+        "unfollows": _as_int(summary[10] if summary else 0),
         "platformEngagedUsers": _as_int(platform[0] if platform else 0),
         "loginTrends": [
             {"date": row[0], "count": _as_int(row[1]), "uniqueUsers": _as_int(row[2])}
@@ -171,7 +177,11 @@ def fetch_property_analytics(from_date: datetime, to_date: datetime) -> Dict[str
             countIf(event_type = 'PROPERTY_SHARED') AS shares,
             countIf(event_type = 'PROPERTY_RATED') AS ratings,
             countIf(event_type = 'PROPERTY_REPORTED') AS reports,
-            ifNotFinite(avgIf(view_duration, event_type = 'PROPERTY_VIEWED' AND view_duration > 0), 0) AS avg_view_duration
+            ifNotFinite(avgIf(view_duration, event_type = 'PROPERTY_VIEWED' AND view_duration > 0), 0) AS avg_view_duration,
+            countIf(event_type = 'PROPERTY_CREATED') AS created,
+            countIf(event_type = 'PROPERTY_UPDATED') AS updated,
+            countIf(event_type = 'PROPERTY_DELETED') AS deleted,
+            countIf(event_type = 'PROPERTY_UNSAVED') AS unsaves
         FROM property_activity_event
         WHERE event_time >= {from_ts:DateTime64(3)}
           AND event_time <= {to_ts:DateTime64(3)}
@@ -221,6 +231,10 @@ def fetch_property_analytics(from_date: datetime, to_date: datetime) -> Dict[str
         "ratings": _as_int(summary[5] if summary else 0),
         "reports": _as_int(summary[6] if summary else 0),
         "avgViewDurationSeconds": _as_int(summary[7] if summary else 0),
+        "created": _as_int(summary[8] if summary else 0),
+        "updated": _as_int(summary[9] if summary else 0),
+        "deleted": _as_int(summary[10] if summary else 0),
+        "unsaves": _as_int(summary[11] if summary else 0),
         "viewsByDay": [
             {"date": row[0], "count": _as_int(row[1]), "uniqueUsers": _as_int(row[2])}
             for row in daily
@@ -254,7 +268,10 @@ def fetch_post_analytics(from_date: datetime, to_date: datetime) -> Dict[str, An
             countIf(event_type = 'POST_SAVED') AS saves,
             countIf(event_type = 'POST_COMMENTED') AS comments,
             countIf(event_type = 'POST_REPORTED') AS reports,
-            ifNotFinite(avgIf(view_duration, event_type = 'POST_VIEWED' AND view_duration > 0), 0) AS avg_view_duration
+            ifNotFinite(avgIf(view_duration, event_type = 'POST_VIEWED' AND view_duration > 0), 0) AS avg_view_duration,
+            countIf(event_type = 'POST_CREATED') AS created,
+            countIf(event_type = 'POST_UPDATED') AS updated,
+            countIf(event_type = 'POST_DELETED') AS deleted
         FROM post_activity_event
         WHERE event_time >= {from_ts:DateTime64(3)}
           AND event_time <= {to_ts:DateTime64(3)}
@@ -263,8 +280,8 @@ def fetch_post_analytics(from_date: datetime, to_date: datetime) -> Dict[str, An
     daily_sql = """
         SELECT
             event_date,
-            countIf(event_type = 'POST_VIEWED') AS views,
-            uniqExactIf(user_id, event_type = 'POST_VIEWED') AS unique_users
+            countIf(event_type IN ('POST_VIEWED', 'POST_CREATED', 'POST_LIKED', 'POST_COMMENTED')) AS activity,
+            uniqExact(user_id) AS unique_users
         FROM post_activity_event
         WHERE event_time >= {from_ts:DateTime64(3)}
           AND event_time <= {to_ts:DateTime64(3)}
@@ -306,6 +323,9 @@ def fetch_post_analytics(from_date: datetime, to_date: datetime) -> Dict[str, An
         "comments": _as_int(summary[7] if summary else 0),
         "reports": _as_int(summary[8] if summary else 0),
         "avgViewDurationSeconds": _as_int(summary[9] if summary else 0),
+        "created": _as_int(summary[10] if summary else 0),
+        "updated": _as_int(summary[11] if summary else 0),
+        "deleted": _as_int(summary[12] if summary else 0),
         "viewsByDay": [
             {"date": row[0], "count": _as_int(row[1]), "uniqueUsers": _as_int(row[2])}
             for row in daily
@@ -334,7 +354,10 @@ def fetch_comment_analytics(from_date: datetime, to_date: datetime) -> Dict[str,
             uniqExactIf(user_id, event_type = 'COMMENT_CREATED') AS unique_commenters,
             countIf(event_type = 'COMMENT_LIKED') AS likes,
             countIf(event_type = 'COMMENT_REPORTED') AS reports,
-            countIf(event_type = 'COMMENT_CREATED' AND parent_comment_id IS NOT NULL) AS replies
+            countIf(event_type = 'COMMENT_CREATED' AND parent_comment_id IS NOT NULL) AS replies,
+            countIf(event_type = 'COMMENT_DELETED') AS deleted,
+            countIf(event_type = 'COMMENT_UNLIKED') AS unlikes,
+            countIf(event_type = 'COMMENT_UPDATED') AS updated
         FROM comment_activity_event
         WHERE event_time >= {from_ts:DateTime64(3)}
           AND event_time <= {to_ts:DateTime64(3)}
@@ -363,6 +386,9 @@ def fetch_comment_analytics(from_date: datetime, to_date: datetime) -> Dict[str,
         "likes": _as_int(summary[2] if summary else 0),
         "reports": _as_int(summary[3] if summary else 0),
         "replies": _as_int(summary[4] if summary else 0),
+        "deleted": _as_int(summary[5] if summary else 0),
+        "unlikes": _as_int(summary[6] if summary else 0),
+        "updated": _as_int(summary[7] if summary else 0),
         "commentsByDay": [
             {"date": row[0], "count": _as_int(row[1]), "uniqueUsers": _as_int(row[2])}
             for row in daily
